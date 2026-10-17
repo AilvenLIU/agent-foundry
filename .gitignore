@@ -25,8 +25,3 @@ Thumbs.db
 *.tmp
 *.bak
 *.log
-
-# Claude Code session state (temporary, not committed)
-.claude/session_state.json
-.agents/session_state.json
-.agents/capabilities.yml.bak

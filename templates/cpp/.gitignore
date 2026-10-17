@@ -5,8 +5,6 @@ __pycache__/
 *.py[cod]
 
 # Build directories
-!.agents/skills/build/
-!.claude/skills/build/
 /build/
 cmake-build-*/
 out/
@@ -119,8 +117,7 @@ Thumbs.db
 *~
 
 # CPM dependency cache
-3rdparty/cpm-cache/*
-!3rdparty/cpm-cache/.gitkeep
+3rdparty/cpm-cache/
 
 # Documentation
 docs/_build/
@@ -134,10 +131,3 @@ Doxyfile.bak
 *.log
 *.bak
 *.orig
-
-# Claude Code session state (temporary, not committed)
-.claude/session_state.json
-.agents/session_state.json
-
-# Migration backup artifact
-.agents/capabilities.yml.bak

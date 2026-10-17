@@ -1,155 +1,34 @@
-# Self-hosted GitHub Actions runners
+# Self-hosted Actions runners
 
-Use this reference when GitHub Actions build, test, lint, package, or GPU jobs
-run on a persistent self-owned host. This is Pattern A: CI compute. It does not
-replace Pattern B: deployment of an immutable artefact from an isolated
-GitHub-hosted job through restricted SSH and the host contract in
-`$deploy-service`.
+Pattern A (self-hosted runner) supplies CI compute. Pattern B (GitHub-hosted deploy job + scoped SSH to `deploy`) promotes to production. They are independent and often combined; Pattern B stays the deploy path even when the runner built the artefact.
 
-## Contents
+## Trust boundary
 
-- [Select the patterns independently](#select-the-patterns-independently)
-- [Establish the runner trust boundary](#establish-the-runner-trust-boundary)
-- [Bootstrap through one committed idempotent script](#bootstrap-through-one-committed-idempotent-script)
-- [Adapt workflows for a persistent host](#adapt-workflows-for-a-persistent-host)
-- [Validate installation and maintenance](#validate-installation-and-maintenance)
+- Treat the runner as arbitrary code execution for anyone who can trigger an authorised workflow. Prefer a private repository and a repository-scoped runner; an organisation runner needs a repository allow-list. Never route public-fork code to a persistent runner without disposable workers and a reviewed approval model.
+- On a machine shared with production, the runner user is not `deploy`, holds no deploy key, cannot call the activation helper, and has no write access to the `deploy` root, live releases, persistent state or database namespace. No shared groups, sudo rules, sockets or helpers. Container-daemon membership is root-equivalent; use another host or stronger isolation, or record the risk instead of claiming least privilege.
+- Dedicated system user, no login, no sudo, only the device or build groups the job matrix needs. Use specific labels (repository, OS, arch, hardware, trust class), not bare `self-hosted`.
+- Registration tokens are short-lived and kept out of files, logs, service environments and shell history; registration is administration, not a workflow step.
 
-## Select the patterns independently
+## Bootstrap: one committed, idempotent root script
 
-| Need | Pattern | Trust boundary |
-|------|---------|----------------|
-| Move expensive or hardware-specific CI compute onto owned capacity | Pattern A: self-hosted Actions runner | The runner connects outbound to GitHub and executes repository job code as a dedicated unprivileged runner identity |
-| Promote a verified artefact to a live service | Pattern B: GitHub-hosted deploy job plus scoped SSH identity | An isolated hosted job crosses inbound to one narrow host activation interface |
+1. Create runner user, home, work, tool, cache and service dirs with deliberate ownership. Fix the whole runner-owned cache tree, including parents root created.
+2. Install packages, compilers and container support there; workflow steps get no sudo.
+3. Download a pinned runner release and verify its recorded SHA-256 before extraction. Never resolve `latest`.
+4. Register at the narrowest scope, install via the runner's service installer.
+5. systemd drop-in with `Restart=on-failure` and `RestartSec=10`. A protective `OOMScoreAdjust` for the listener does not protect memory-heavy job children.
+6. Set the service PATH explicitly: the installer may capture root's PATH, so add the runner user's tool dirs such as `~/.local/bin`.
+7. Provision swap and persistent caches once on the host, never per job.
+8. Skip restart or upgrade with a warning while a job worker is active.
 
-Projects may use either pattern or both. When both use the same machine, they
-MUST use different operating-system principals with no shared credentials,
-sudo rules, privileged groups, writable directories, helpers, or production
-control sockets. Treat the CI principal as arbitrary code execution by anyone
-who can cause an authorised workflow to run. It MUST NOT read the deployment
-key, invoke the activation helper, or modify production releases or state.
-The deployment principal is named `deploy` by default and owns the approved
-service root; the runner principal must not be `deploy` and must not write that
-root or a deploy-managed database namespace.
+Re-running the script must converge without duplicating registrations, services, groups, swap or directories.
 
-Membership of a container-daemon group is root-equivalent. A runner with that
-access does not satisfy process-only separation from production on the same
-kernel; use stronger isolation or a different host, or record a durable,
-reviewed risk exception that does not claim least privilege.
+## Workflow adjustments
 
-## Establish the runner trust boundary
-
-- Prefer a private repository and a repository-scoped runner. An organisation
-  runner needs an explicit repository allow-list and a reason to share capacity.
-- Do not expose a persistent self-hosted runner to arbitrary public-fork code.
-  A public-repository design needs a reviewed isolation and approval model,
-  ephemeral disposable workers, and proof that untrusted jobs cannot reach
-  secrets or persistent host state.
-- Create a dedicated system user with no interactive login and no sudo. Grant
-  only the device or build groups the declared job matrix requires.
-- Use specific runner labels for repository, operating system, architecture,
-  hardware, and trust class. Do not route a privileged job using only the
-  generic `self-hosted` label.
-- Keep registration tokens short-lived and out of files, logs, service
-  environments, and shell history. Registration is administration, not a
-  workflow step.
-
-## Bootstrap through one committed idempotent script
-
-Run the host bootstrap as root for first installation and maintenance. It MUST
-be safe to re-run and MUST:
-
-1. Create the runner identity, home, work, tool, cache, and service directories
-   with deliberate ownership and modes. Correct the whole runner-owned cache
-   tree, including parents created by root; fixing only one child cache leaves
-   other tools unable to create siblings.
-2. Install system packages, compilers, container support, and other privileged
-   prerequisites. Workflow steps do not receive sudo.
-3. Download a pinned Actions runner release and verify its recorded SHA-256
-   digest before extraction. Never resolve `latest` during bootstrap.
-4. Register the runner at the narrowest required scope with a short-lived
-   token, then install it through the runner's supported service installer.
-5. Add a systemd drop-in with `Restart=on-failure` and an explicit restart delay, such as `RestartSec=10`.
-   Consider a protective `OOMScoreAdjust` for the listener, while documenting
-   that it does not protect memory-heavy child job processes.
-6. Set the service PATH explicitly. Service installation may capture the root
-   installer's PATH; ensure the runner user's tool directories, such as
-   `~/.local/bin`, are present in the service's effective PATH.
-7. Provision host-level swap and persistent cache capacity once. Do not create
-   a new swap device or other supposedly ephemeral host resource per job.
-8. Check for an active job worker before restarting or upgrading the service.
-   Skip with an actionable warning rather than terminating an in-flight job.
-
-Monitor the service and queue state. Auto-restart handles listener failure; it
-does not replace alerting, capacity monitoring, or a safe maintenance window.
-
-## Adapt workflows for a persistent host
-
-- Remove `sudo apt-get`, system service changes, user/group changes, and other
-  privileged setup from workflow steps. Put stable host prerequisites in the
-  bootstrap or a reviewed immutable worker image.
-- Do not assume `runner.temp`, the workspace, caches, or tool directories are
-  destroyed between jobs. Use release- or run-specific paths, clean sensitive
-  temporary data, and make retries idempotent.
-- Prefer a directly configured persistent local build cache when the same host
-  handles repeat jobs. A remote cache action may be unnecessary overhead.
-  Partition local caches by repository and trust class, include all
-  ABI/toolchain inputs in keys, and make a cache miss affect speed only.
-- Remove per-run swapfile creation. A persistent host otherwise accumulates
-  active swap devices and files across jobs.
-- Audit marketplace and composite actions that bootstrap an internal
-  interpreter or toolchain. If their nested environment propagation fails on
-  the host, use an explicitly pinned top-level setup action followed by the
-  tool's pinned CLI. Do not weaken action pinning or patch runtime library paths
-  globally to conceal the boundary.
-- Declare and record the host compiler, standard library, runtime, container
-  engine, and hardware contract. A first failure under a newer toolchain may be
-  a genuine latent source or dependency defect; reproduce it and check reviewed
-  upstream fixes before classifying it as runner noise.
-- Keep matrix entries that represent supported product targets. Remove hosted
-  image parity entries only when the product contract truly has one target;
-  one self-hosted machine is not evidence for another OS, architecture, ABI, or
-  GPU generation.
-
-## Store release artefacts on the triggering server
-
-When this runner triggers the CI jobs, its server-local artefact store is the
-primary hand-off between validation, build, publication, and deployment. Use
-the contract in [artifact-storage.md](artifact-storage.md).
-
-- Configure one fixed repository store beneath an approved data root, such as
-  `/data/ci-artifacts/<repository>`, outside the runner workspace and outside
-  every production release or persistent-state root.
-- Commit a complete artefact and manifest atomically after validation. Record
-  the source SHA, workflow run, release id, digest, compatibility, and status.
-- Do not call `actions/upload-artifact`, `actions/download-artifact`, or an
-  equivalent Actions artefact API or CLI for the primary bytes. The only
-  exception is the documented technical-necessity and explicit-user-request
-  path in [artifact-storage.md](artifact-storage.md); it expires within one day
-  and is never the release or rollback authority. A protected deploy boundary
-  reads the committed record via a fixed host helper and verifies the digest
-  again.
-- Keep, by default, only the three newest verified `master` records and two
-  newest verified `develop` records, plus live, rollback, pinned, held, and
-  activating records. Prune under a repository lock; never prune an active
-  job's staging directory or an unknown-state record.
-- Run and monitor cleanup on the host. A runner restart, workspace cleanup, or
-  GitHub Actions retention event must not decide whether a rollback is valid.
-
-## Validate installation and maintenance
-
-- Re-run bootstrap and verify it converges without duplicating registration,
-  services, groups, swap, or directories.
-- Confirm the listener restarts after failure and that its effective PATH finds
-  every pre-provisioned tool.
-- Run cache and package tools as the runner user and verify the entire
-  runner-owned cache tree is writable without broadening unrelated modes.
-- Exercise the busy guard against a running job before a service restart or
-  upgrade.
-- Inspect the runner user's groups, readable credentials, writable paths, sudo
-  rules, service access, and sockets. When production is co-located, prove the
-  CI user cannot reach the deploy identity or live service state.
-- Run the authoritative workflow twice to expose persistent-state assumptions,
-  cache contamination, duplicate resources, and non-idempotent cleanup.
-- Record runner version and digest, labels and scope, bootstrap revision,
-  toolchain and hardware identity, service policy, capacity, residual
-  privileges, and every check not run.
+- Remove `sudo apt-get` and other privileged setup from steps; put prerequisites in the bootstrap or a reviewed worker image.
+- Assume workspace, `runner.temp` and caches persist between jobs: use run-specific paths, clean sensitive temp data, keep retries idempotent. Run the workflow twice to expose stale state.
+- Prefer a local build cache over a remote cache action; partition by repository and trust class, put all ABI and toolchain inputs in the key, make a miss cost only speed.
+- Remove per-run swapfile creation.
+- If a marketplace or composite action that bootstraps its own interpreter breaks on the host, use a pinned top-level setup action plus the tool's pinned CLI; do not weaken pinning or patch library paths globally.
+- Record the host compiler, standard library, runtime, container engine and hardware. A first failure under a newer toolchain may be a real latent defect: reproduce before calling it runner noise.
+- Keep matrix entries for supported product targets; one self-hosted machine is not evidence for another OS, arch, ABI or GPU.
+- Artefacts go to the server-local store ([artifact-storage.md](artifact-storage.md)), not Actions upload.

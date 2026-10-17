@@ -1,79 +1,20 @@
-# Container, native-binary, and long-running service releases
+# Release models and artefact compatibility
 
-Use this model when activation changes processes rather than only a document
-root.
+## Static directory
 
-## Artefact contract
+Activation steps: take the host lock; receive the archive in a release-specific temp path outside `current`; validate id, digest, members and containment; extract into `staging/` on the same filesystem as `releases/`; check required files, modes and ownership; rename to the final `releases/<id>`; create a temporary relative symlink and `rename` it over `current`; run direct-origin and public checks that identify the release; record previous and current before any pruning.
 
-Deploy a CI-built container image by immutable digest or a CI-built native
-release archive with a recorded checksum. Do not deploy a floating image tag as
-the only identity. Resolve the record from its separate local artefact store and
-verify the manifest and digest before staging. Store release metadata separately
-from writable runtime state. GitHub Actions artefact storage is not a default
-bridge; any unavoidable one-day cross-host exception needs documented technical
-necessity and a current user who explicitly requests it, and is never rollback
-authority.
+## Containers, native binaries, long-running services
 
-For containers, give the application stack a stable project name and stable
-labels for service, release, channel, source SHA, and image digest. For native
-services, install immutable versioned paths and make systemd reference a stable
-activation pointer or validated environment file.
+- Container: deploy by immutable image digest, never a floating tag as the only identity. Give the stack a stable Compose project name and labels for service, release, channel, source SHA and image digest. The helper loads the CI-built image and selects the validated reference; it does not `docker pull`, `docker login` or build.
+- Native: install immutable versioned paths with a recorded checksum; systemd references a stable pointer or a validated environment file.
+- Define the expected topology exactly. Detect both missing units and stale duplicate stacks. The reverse proxy and monitoring are not a second application stack.
+- Activation metadata names the data root (under `/data/`, `~/data/` or an approved volume, owned by `deploy`) and rejects system-owned roots; with a local database it also names the separate database root.
+- Health covers: release identity and digest, exact unit or container set, loopback per role, worker heartbeat, proxy route with the real hostname, authenticated and unauthenticated routes, and native/FFI/DB/GPU checks.
 
-## Automatic promotion source
+## Per-profile compatibility
 
-Unless a durable, reviewed project-specific release policy states otherwise,
-automatic activation accepts only release metadata for the exact SHA produced by
-a `master` update. Record that `master` SHA with the digest before activation.
-A release candidate from `develop`, `release/*`, or `hotfix/*` may be tested,
-but it has no default authority to activate production. Manual recovery remains
-an approved operator action using a verified `master` artefact. Unless a durable,
-reviewed project-specific policy says otherwise, activation metadata must name a
-canonical dedicated data root beneath `/data/`, `~/data/`, or another approved
-data volume; it must reject system-owned roots such as `/var/`, `/srv/`, or
-`/opt/`. The root must be owned by the canonical unprivileged `deploy` account.
-If the service uses a local database, activation metadata must also identify its
-separate deploy-managed root beneath `/data/database/`, `~/data/database/`, or
-another approved data volume without granting the release workflow permission
-to alter database contents.
-
-## Privileged activation
-
-Keep activation logic in reviewed, persistent, root-owned helpers. The helper
-must:
-
-1. Validate release id, channel, source SHA, paths, and digest against strict
-   allow-lists.
-2. Acquire an exclusive deployment lock.
-3. Refuse unknown parallel or legacy application instances.
-4. Verify host compatibility and persistent-state prerequisites.
-5. Stage the new release without stopping the current one where possible.
-6. Activate exactly the intended services and record the previous release.
-7. Run status and smoke gates before marking the release live.
-8. Restore the previous release automatically when activation fails safely.
-
-Do not give CI sudo permission to general shells, package managers, Docker as a
-whole, systemctl as a whole, wildcard interpreters, or uploaded temporary
-scripts.
-
-## Topology and health
-
-Define the expected application topology exactly. Detect both missing services
-and stale duplicate stacks. Supporting infrastructure such as the reverse
-proxy or monitoring system does not count as a second application stack.
-
-Health checks should cover:
-
-- intended release identity and digest
-- exact process or container set
-- loopback health for every service role
-- worker progress or heartbeat, not only an open port
-- reverse-proxy routing with the production host name
-- representative authenticated and unauthenticated routes
-- native library, FFI, database, and GPU checks where applicable
-
-## Rollback and migrations
-
-Rollback selects an existing verified artefact; it never rebuilds source. If a
-release changes persistent data or schema, define compatibility with both the
-new and previous application versions before automatic rollback. Otherwise
-make rollback a deliberate operator-gated recovery procedure.
+- **Python**: ship a CI-built wheel, archive or container with locked dependencies and recorded Python ABI. No Poetry or pip at activation. If a container copies a venv from a builder stage, builder and runtime paths and interpreter ABI must match. Migrations are explicit, serialised release steps.
+- **C++/CUDA**: ship a CMake-built archive or container with target OS, arch, compiler/runtime ABI, shared libraries and CUDA compatibility; executable, libraries, resources, licences and service metadata in one release. No compile or CPM resolve on the host. The NVIDIA driver is a host prerequisite: never bundle or replace it. When a GPU is required, health must include device discovery and a representative kernel.
+- **Hybrid**: ship a wheel, archive or container whose native graph was built by CMake and packaged through scikit-build-core. Verify Python ABI, native library loading and FFI error propagation before activation. Record both Python and native/GPU requirements.
+- **Fleets**: reject an incompatible artefact before stopping the live release. Use separate artefacts and canary activation for heterogeneous OS, arch, ABI or GPU.
