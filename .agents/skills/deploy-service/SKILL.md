@@ -1,69 +1,188 @@
 ---
 name: deploy-service
-description: Secure host-side deployment of a static, Python, C++/CUDA, hybrid, native-binary or container service on a Linux host. Covers data roots, the unprivileged deploy account, immutable releases, restricted activation helpers, health gates, rollback, retention, systemd, reverse proxy, TLS, DNS and firewall. Use for server bootstrap, activation helpers, service units and deploy or rollback runbooks; use service-cicd for the GitHub Actions side.
+description: Design, implement, review, or troubleshoot secure host-side deployment of a service using an approved data or www root, immutable release artefacts, restricted SSH or host helpers, atomic activation, runtime services, health gates, rollback, retention, reverse proxy, TLS, DNS, firewall, and production evidence. Use for static sites, Python services, C++/CUDA services, hybrid applications, container stacks, fresh-server bootstrap, service units, host activation, or deployment runbooks. Use service-cicd separately for GitHub Actions CI, auto-deployment, and auto-release.
 ---
 
 # Deploy Service
 
-Deploy a CI-built immutable artefact into a fixed data root and activate it through a narrow, persistent host interface. This skill owns the host. `service-cicd` owns the workflow that calls it.
+Deploy a verified immutable artefact into a deliberately selected host root,
+then activate it through a narrow persistent interface. This skill owns the
+host. Read `$service-cicd` for GitHub Actions validation, build, publication,
+auto-deployment, and auto-release. A self-hosted CI runner provides compute; it
+does not replace the separate restricted SSH deployment identity and host
+activation boundary.
 
-## Host defaults
+## Start with the host contract
 
-- **Deployment root**: `/data/www/<service>`, `~/data/www/<service>` or another dedicated data volume (`/mnt/<volume>/www/<service>`). Resolve `~` to the `deploy` account's home (normally `/home/deploy/data/`) and write absolute paths into unit and proxy config. Never default to `/var`, `/srv`, `/opt`, `/usr` or `/usr/local`. A legacy system path needs an explicit decision from the user; "the host already does it" is not one. Do not migrate a sound live layout only to match this.
-- **Root is trusted config.** A branch, release id, workflow input or archive path never selects or builds it. If the root is a symlink, resolve it and confirm it stays on the approved filesystem.
-- **Account**: one unprivileged `deploy` user (no interactive shell, no broad sudo) owns the root and its staging, releases, metadata, locks and deploy-managed state. Root owns privileged helpers, sudoers, unit policy and proxy config. The runtime service runs as its own identity with only the read, traverse or writable-state access it needs. Several services may share the account name, never credentials or helper allow-lists: one credential per repository and environment.
-- **Local database**: separate `deploy`-owned root `/data/database/<service-or-engine>` or `~/data/database/<service-or-engine>`, outside releases. Delegate only the engine child directory when the engine's own identity must own raw files. Deploy, rollback and prune never touch database contents; migration, restore and deletion are separate, explicit operations.
-- **Promotion authority**: automatic activation runs only after `main` is updated and deploys the artefact built from that exact SHA. Other branches may validate but never activate production. Manual deploy and rollback are operator actions and also use a verified `main` artefact.
-- **Same-machine CI**: a self-hosted runner shares no credentials, groups, helpers, control sockets or writable paths with `deploy` or production state, and cannot modify live releases. Docker-group membership is root-equivalent and does not count as separation.
+1. Read `.agents/constraints/common/service-deployment.md`. When GitHub Actions,
+   auto-deployment, or auto-release is in scope, also read
+   `.agents/constraints/common/github-actions-cicd.md`; skill guidance does not
+   replace either mandatory constraint.
+2. Read repository entrypoints, `.agents/project.yml`, release metadata, existing
+   host helpers, service units, reverse-proxy configuration, mounts, and
+   operations documentation.
+3. Inventory the host before mutation: identities, mounts, filesystem capacity,
+   ownership, existing release layout, persistent data, backups, listeners,
+   services, containers, routes, firewall, VPN, DNS, TLS, and recovery access.
+4. Record assumptions affecting availability or security: target hosts,
+   deployment root, `deploy` identity, runtime identity, persistent state,
+   local database root where applicable, compatibility, health surfaces,
+   rollback objective, retention, and privilege boundary.
+5. Select and document the deployment root using
+   [host-layout.md](references/host-layout.md). Unless a durable, reviewed
+   project-specific deployment policy says otherwise, use an independently
+   mounted `/data/www/<service>`-style root, an approved `~/data/www/<service>`
+   root, or another explicitly approved dedicated data volume. Do NOT use
+   `/var/`, `/srv/`, `/opt/`, `/usr/`, `/usr/local/`, or another system-owned
+   hierarchy as the default deployment root.
+6. Unless a durable, reviewed project-specific deployment policy says
+   otherwise, provision the canonical unprivileged deployment account as
+   `deploy`, make it own the approved service root, and keep privileged helpers
+   root-owned. When a local database is required, reserve a separately managed
+   `deploy`-owned root such as `/data/database/<service-or-engine>` or
+   `~/data/database/<service-or-engine>`; document any narrowly delegated
+   engine-owned child directory.
+7. Select the activation model:
+   - Static files: read [static-releases.md](references/static-releases.md).
+   - Containers, native binaries, Python runtimes, or long-running services:
+     read [service-releases.md](references/service-releases.md).
+8. Read [project-profiles.md](references/project-profiles.md) to verify the
+   artefact/host compatibility boundary.
+9. For fresh host, reverse proxy, TLS, DNS, firewall, VPN, or systemd work, read
+   [host-bootstrap.md](references/host-bootstrap.md).
+10. For dual-stack reverse-proxy or Cloudflare-origin failures, read
+    [dual-stack-ingress.md](references/dual-stack-ingress.md).
+11. For any immutable local-store or GitHub-upload exception decision, read
+    `.agents/skills/service-cicd/references/artifact-storage.md` for the
+    server-local artefact store, rolling retention, and exception contract.
 
-Before changing a host, inventory identities, mounts and free space, listeners (IPv4 and IPv6), services and containers, firewall, VPN, DNS, TLS and recovery access. Existing network services are dependencies: opening only SSH/HTTP/HTTPS can break a VPN gateway or local resolver.
+Stop for approval before changing public DNS, firewall policy, credentials,
+production data, privileged command boundaries, destructive retention, or an
+existing live layout.
 
-Ask the user before changing public DNS, firewall policy, credentials, production data, privileged command boundaries, destructive retention or an existing live layout.
+## Resolve automatic promotion authority
 
-## Release layout
+Before designing or enabling automatic host activation, resolve the release
+authorisation. Unless a durable, reviewed project-specific release policy says
+otherwise, automation runs only after `master` is updated and deploys the
+immutable artefact built from that exact `master` SHA. `develop`, `release/*`,
+and `hotfix/*` may validate candidates but MUST NOT automatically activate a
+production service or publish a version. Manual deployment and rollback remain
+explicit operator actions and promote verified `master` artefacts only.
 
-```text
-<root>/
-  releases/<release-id>/     immutable
-  staging/                   same filesystem as releases/ (atomic rename)
-  metadata/<release-id>.env
-  shared/                    uploads, runtime data (or a separate data root)
-  current -> releases/<release-id>
-  locks/
-```
+Unless the project-specific policy grants an explicit reviewed exception, the
+automated deploy workflow and host helper MUST use a canonical dedicated data
+root and reject `/var/`, `/srv/`, `/opt/`, `/usr/`, `/usr/local/`, and other
+system-owned deployment roots. A workflow input or existing host convention is
+not an exception. GitHub Actions is the recommended automatic-deployment
+orchestrator; its protected deploy job uses a scoped credential for the
+canonical unprivileged `deploy` account and never the self-hosted runner
+identity.
 
-The proxy serves only `current`. Never expose staging, metadata, helpers, credentials or `.git`. Size the disk for staged + live + rollback + growth during activation. Artefact specifics per profile and activation model: [service-releases.md](references/service-releases.md).
+## Enforce these invariants
 
-## Invariants
+- Production receives an immutable CI-built artefact. Do not deploy with
+  `git pull`, dependency resolution, package installation, or source compilation
+  on the host.
+- Select that input from the fixed local artefact store or fixed host interface,
+  never GitHub Actions artefact storage by default. A GitHub byte-upload bridge
+  requires documented technical necessity and a current user who explicitly
+  requests it under `service-cicd/references/artifact-storage.md`; it expires
+  within one day and is never the release or rollback authority.
+- The deployment root is fixed by trusted host configuration, not selected by a
+  branch, release id, workflow input, archive path, or other user-controlled
+  value. Canonicalize and enforce path containment at every file boundary.
+- Keep transfer/staging outside the live document root. Separate immutable
+  releases from uploads, databases, credentials, logs, and all persistent state.
+- Give every deployment a validated release id joining source SHA, artefact
+  digest, host metadata, activation status, rollback target, and retention.
+- Verify digest, provenance when available, archive paths, and host compatibility
+  before activation.
+- Keep the canonical `deploy` principal unprivileged and make it own the
+  approved service root. Privileged activation uses a narrow, persistent,
+  root-owned helper through an exact forced-command or `sudo -n` allow-list.
+  Never run a newly uploaded script as root.
+- Keep local database state in a separately managed `deploy`-owned root beneath
+  `/data/database/`, `~/data/database/`, or another approved data volume.
+  Delegate only an engine-specific child directory when its runtime identity
+  must own raw files; deployment, rollback, and pruning never imply permission
+  to mutate database state.
+- If self-hosted CI shares the production machine, give its runner and deploy
+  path separate principals with no overlapping credentials, privileged groups,
+  helpers, control sockets, or writable paths. The runner MUST NOT modify live
+  releases or persistent production state.
+- Pin SSH host identity and restrict deployment keys: no general shell, PTY,
+  forwarding, agent forwarding, X11, or user-selected command.
+- Serialize activation and pruning per environment with a host-side lock.
+- Make activation atomic where supported. Traffic sees the old complete release
+  or the new complete release, never a mixed tree.
+- Declare success only after release identity, exact process/container topology,
+  loopback health, worker progress where applicable, ingress, and representative
+  application behaviour pass.
+- Rollback selects a retained verified artefact and uses the same helper family.
+  It does not rebuild or repair source manually.
+- Cleanup is dry-run capable, cannot escape the approved root, preserves live,
+  rollback, activating, pinned, and held releases, and fails closed on malformed
+  metadata or unknown state.
+- Every host service the deployment depends on carries an explicit, verified
+  restart policy. Distribution units commonly ship `Restart=no` with the default
+  `OOMPolicy=stop`, so one OOM-killed child leaves the unit dead until a person
+  intervenes. Install a drop-in, never edit the packaged unit, and have the
+  installer read the effective properties back and fail when they do not match.
+  See [host-bootstrap.md](references/host-bootstrap.md).
 
-- Deploy an immutable CI-built artefact. No `git pull`, dependency resolution, package install or source compilation on the host.
-- The input comes from the fixed server-local artefact store or a fixed host interface, not GitHub Actions artefact storage (see `service-cicd`). Keep that store outside the root, releases and persistent state; `deploy` may promote a selected digest but cannot write or prune it.
-- Each release has a validated id joining source SHA, artefact digest, compatibility, timestamps, previous live release, status and retention reason.
-- Verify digest, provenance if available, archive members and host compatibility (OS, arch, ABI, CUDA/driver) before stopping the live release. Reject absolute members, `..`, unexpected links and device files; canonicalise every path before use and never follow user-made symlinks in cleanup.
-- Privileged activation is a persistent root-owned helper behind a forced-command SSH key or an exact `sudo -n` rule. Never run an uploaded script as root. Revalidate every argument (id, channel, SHA, digest, paths) inside the helper against strict allow-lists.
-- Pin the SSH host key. Deploy keys have no shell, PTY, forwarding, agent, X11 or user-selected command. Never give CI general sudo, Docker daemon access, unrestricted `systemctl`, package managers or interpreters.
-- Serialise activation and pruning per environment with a host lock. Traffic sees the whole old release or the whole new one: atomic rename plus symlink swap, or a validated environment file that systemd reads.
-- Keep secrets and keys out of artefacts and logs.
-
-## Activation
+## Use an explicit host state machine
 
 ```text
 received -> verified -> staged -> activating -> healthy -> live
-                                       +-- failed --> rollback -> restored
+                                   |             |
+                                   +-- failed ---+--> rollback -> restored
 ```
 
-The helper locks, validates, refuses unknown parallel or legacy instances, stages without stopping the current release where possible, switches, runs health gates, then marks live and records the previous release. Never overwrite an existing release directory: verify its digest and treat a repeat as a no-op. On failure it restores the previous release automatically when that is safe. A failed health gate stays failed; do not weaken it.
+Record at least release id, source SHA, artefact digest, compatibility, created
+and activated UTC timestamps, previous live release, status, health results,
+and retention reasons. Retrying the same verified release is a safe no-op or
+repeats validation without corrupting state.
 
-Success means all of: release identity and digest match; exact process or container set (no stale duplicate stack); loopback health for every role; worker progress, not just an open port; proxy route with the production hostname and SNI; a representative real request; native, FFI, DB and GPU checks where relevant (a kernel actually runs; HTTP 200 does not prove FFI health). The helper returns a non-secret host identity (target label, hostname, release id, UTC time) so CI can confirm it hit the intended server.
+## Keep the host interface narrow
 
-A red deploy is not automatically a bad release: if ingress checks fail while a host dependency such as the proxy is down, fix the dependency first.
+Prefer one of:
 
-## Rollback and retention
+1. A forced-command SSH key invoking one fixed unprivileged publisher.
+2. A restricted account invoking a fixed root-owned helper through an exact
+   `sudo -n` rule.
+3. A pull-based deployment agent with equivalent digest, identity, and
+   activation restrictions.
 
-- Rollback picks a retained verified release and uses the same helper family and the same health gates. It never rebuilds or repairs a checkout.
-- A release that changes persistent schema needs a stated compatibility with the previous version; otherwise rollback is a deliberate operator procedure.
-- Retain at least live and one known-good rollback target, plus activating, pinned and held releases. Cleanup supports dry-run, stays under the root, refuses symlink escapes and fails closed on malformed metadata or unknown state.
+Validate every argument again inside the host helper. Remote automation is not
+a host security boundary. Never give CI general sudo, Docker daemon access,
+unrestricted `systemctl`, package managers, interpreters, or uploaded scripts.
 
-## Host services and edge
+## Validate adversarially
 
-Bootstrap, systemd restart policy for dependency daemons, TLS/DNS cutover and firewall: [host-bootstrap.md](references/host-bootstrap.md). Dual-stack nginx, Cloudflare 521/525/502 diagnosis: [dual-stack-ingress.md](references/dual-stack-ingress.md).
+Challenge at least:
+
+- selected root is missing, full, wrongly owned, symlinked outside its approved
+  boundary, or on a different filesystem from atomic staging
+- archive traversal, hostile release id, mismatched digest, incompatible ABI,
+  or incomplete transfer
+- two activations overlap or complete out of order
+- a stale duplicate process remains after apparently successful activation
+- one process, worker, route, FFI/native path, or ingress check fails
+- rollback target is absent, ambiguous, incompatible, or no longer restorable
+- cleanup sees malformed metadata, symlink escape, expired hold, or unknown live
+  release
+- a migration is not backward compatible with automatic rollback
+- IPv4 works while IPv6, VPN DNS, forwarding, or an existing listener is broken
+
+Do not weaken a failed gate. Preserve the last known-good release, capture
+evidence, and make the failure actionable.
+
+## Handoff
+
+Deliver or update host helpers, service/reverse-proxy configuration, tests, and
+operator runbooks actually required. Report the selected deployment root and
+why, the `deploy` account and ownership/privilege boundary, any local database
+root and delegated engine ownership, artefact contract, activation, health,
+rollback, retention, ingress, bootstrap steps still requiring an operator, and
+validation evidence. Use [validation.md](references/validation.md) for closure.
