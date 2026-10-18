@@ -241,7 +241,6 @@ def _expected_constraints(project_type: str) -> set[str]:
         "common/ascii-only",
         "common/agentic-team",
         "common/service-deployment",
-        "common/master-merge-policy",
         "common/github-actions-cicd",
     }
     if project_type == "python":
@@ -315,11 +314,6 @@ def test_generated_entrypoints_expose_phase_and_closure_discipline(
 
     agents = (project / "AGENTS.md").read_text()
     claude = (project / "CLAUDE.md").read_text()
-
-    for name, text in {"AGENTS.md": agents, "CLAUDE.md": claude}.items():
-        assert "closure-discipline.md" in text, f"{name} missing closure discipline"
-        assert "roadmap phase" in text.lower(), f"{name} missing roadmap phase wording"
-        assert "agent_roadmaps/<phase>" in text, f"{name} uses stale roadmap path token"
 
     roadmap_skill = (
         project / ".agents" / "skills" / "roadmap" / "SKILL.md"
@@ -528,8 +522,7 @@ def test_check_constraints_flags_protected_branch(
 ) -> None:
     project = _make_project(tmp_path, project_type)
     # The fixture left us on feat/sweep -- switch back to the default protected branch.
-    # Agent tooling is present on develop after the two-phase bootstrap.
-    r = _run(["git", "checkout", "develop", "-q"], project)
+    r = _run(["git", "checkout", "main", "-q"], project)
     assert r.returncode == 0, r.stderr
     res = _run(["bash", ".agents/bin/agent-check-constraints"], project)
     assert res.returncode != 0

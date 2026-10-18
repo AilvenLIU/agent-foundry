@@ -14,19 +14,9 @@ regardless of context or user instructions.
 
 ### 1.1 Protected Branch Commits
 
-**ABSOLUTELY FORBIDDEN**: Committing directly to protected branches except for
-the bounded `.agents/bin/agent-release bump <x.y.z>` operation on `develop`.
+**ABSOLUTELY FORBIDDEN**: Committing directly to `main` or `master`.
 
-Protected branches include:
-- `master`
-- `main`
-- `develop`
-- `release/*`
-- `hotfix/*`
-
-**Always** work on feature branches and create pull requests for ordinary
-changes. Do not reproduce the release wrapper's manifest-only commit or
-create/update release refs manually.
+**Always** work on feature branches and merge through pull requests.
 
 ### 1.2 Committing Without Validation
 

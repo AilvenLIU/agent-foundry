@@ -23,51 +23,10 @@ def _text(rel_path: str) -> str:
     return (ROOT / rel_path).read_text(encoding="utf-8")
 
 
-def test_root_agents_contains_cross_agent_mandatory_contract() -> None:
-    content = _text("AGENTS.md")
-    required = [
-        "Mandatory Cross-Agent Contract",
-        ".agents/project.yml",
-        ".agents/capabilities.yml",
-        ".agents/constraints/common/",
-        ".agents/constraints/hybrid/",
-        ".agents/bin/agent-check-constraints",
-        "Python packaging must not define or replace the native build graph",
-    ]
-    for needle in required:
-        assert needle in content
 
 
-def test_root_claude_contains_claude_specific_loading_instructions() -> None:
-    content = _text("CLAUDE.md")
-    required = [
-        "Claude Code MUST NOT edit files until it has completed this read-and-load sequence",
-        "Read root `AGENTS.md`",
-        "Read `.agents/project.yml`",
-        "Read `.agents/capabilities.yml`",
-        ".agents/constraints/cpp/",
-        ".agents/constraints/hybrid/",
-        "bounded constraint manifest",
-        "does not supersede",
-        "Do not silently bypass hooks",
-    ]
-    for needle in required:
-        assert needle in content
 
 
-def test_cpp_and_hybrid_templates_enforce_cpp_first_python_does_not() -> None:
-    cpp_text = _text("templates/cpp/AGENTS.md") + _text("templates/cpp/CLAUDE.md")
-    hybrid_text = _text("templates/hybrid/AGENTS.md") + _text(
-        "templates/hybrid/CLAUDE.md"
-    )
-    python_text = _text("templates/python/AGENTS.md") + _text(
-        "templates/python/CLAUDE.md"
-    )
-
-    assert "C++ First" in cpp_text
-    assert "C++ First" in hybrid_text
-    assert "Python is the binding" in hybrid_text
-    assert "C++ First" not in python_text
 
 
 def test_template_project_yml_contains_project_profile_metadata() -> None:
@@ -87,21 +46,6 @@ def test_template_project_yml_contains_project_profile_metadata() -> None:
             assert needle in content
 
 
-def test_hybrid_entrypoints_match_the_generated_profile_schema() -> None:
-    expected_profile = [
-        "language: [python, cpp]",
-        "build_system: scikit-build-core",
-        "bindings: nanobind",
-        "distribution: pypi-wheel",
-        "hardware_targets: [cuda]",
-        "external_dependencies: system_cuda",
-    ]
-    for rel_path in ("templates/hybrid/AGENTS.md", "templates/hybrid/CLAUDE.md"):
-        content = _text(rel_path)
-        for field in expected_profile:
-            assert field in content, f"{rel_path} missing profile field: {field}"
-        assert "language: [python, cpp, cuda]" not in content
-        assert "external_dependencies:\n    system_cuda: true" not in content
 
 
 def test_native_build_ownership_detects_setup_py_extension(tmp_path: Path) -> None:

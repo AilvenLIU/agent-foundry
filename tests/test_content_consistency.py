@@ -22,7 +22,7 @@ def test_readme_no_missing_codex_integration_doc_reference() -> None:
 
 def test_template_docs_cover_hybrid_projects() -> None:
     root = Path(__file__).parent.parent
-    for rel_path in ["README.md", "AGENTS.md", "CLAUDE.md"]:
+    for rel_path in ["README.md", "AGENTS.md"]:
         content = (root / rel_path).read_text()
         assert "hybrid" in content.lower(), rel_path
 

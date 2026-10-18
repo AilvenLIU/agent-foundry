@@ -64,11 +64,10 @@ existing live layout.
 
 Before designing or enabling automatic host activation, resolve the release
 authorisation. Unless a durable, reviewed project-specific release policy says
-otherwise, automation runs only after `master` is updated and deploys the
-immutable artefact built from that exact `master` SHA. `develop`, `release/*`,
-and `hotfix/*` may validate candidates but MUST NOT automatically activate a
-production service or publish a version. Manual deployment and rollback remain
-explicit operator actions and promote verified `master` artefacts only.
+otherwise, automation runs only after the default branch is updated and deploys the
+immutable artefact built from that exact SHA. Other branches may validate
+candidates but MUST NOT automatically activate a production service or publish a version. Manual deployment and rollback remain
+explicit operator actions and promote verified default-branch artefacts only.
 
 Unless the project-specific policy grants an explicit reviewed exception, the
 automated deploy workflow and host helper MUST use a canonical dedicated data

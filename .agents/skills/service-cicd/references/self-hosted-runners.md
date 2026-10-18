@@ -128,8 +128,7 @@ the contract in [artifact-storage.md](artifact-storage.md).
   and is never the release or rollback authority. A protected deploy boundary
   reads the committed record via a fixed host helper and verifies the digest
   again.
-- Keep, by default, only the three newest verified `master` records and two
-  newest verified `develop` records, plus live, rollback, pinned, held, and
+- Keep, by default, only the three newest verified default-branch records, plus live, rollback, pinned, held, and
   activating records. Prune under a repository lock; never prune an active
   job's staging directory or an unknown-state record.
 - Run and monitor cleanup on the host. A runner restart, workspace cleanup, or

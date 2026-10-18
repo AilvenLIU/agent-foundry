@@ -43,8 +43,7 @@
       local/direct/pull transfer cannot work; it expires within one day and is
       never a release or rollback authority.
 - [ ] Server-local cleanup is locked, dry-run capable, fail-closed, and keeps
-      only the three newest verified `master` records and two newest verified
-      `develop` records by default, plus live/rollback/pinned/held/activating records.
+      only the three newest verified default-branch records by default, plus live/rollback/pinned/held/activating records.
 - [ ] Promotion marks its selected record `activating` or `held` under the
       cleanup lock before pruning can run.
 - [ ] Source SHA, release id, digests, compatibility, provenance, workflow run,
