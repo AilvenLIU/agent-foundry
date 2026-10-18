@@ -30,3 +30,6 @@ Thumbs.db
 .claude/session_state.json
 .agents/session_state.json
 .agents/capabilities.yml.bak
+
+# Personal Claude Code settings
+.claude/settings.local.json
