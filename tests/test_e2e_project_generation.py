@@ -129,6 +129,7 @@ def _assert_common_generated_assets(target: Path, project_type: str) -> None:
     assert not any(target.rglob("__pycache__"))
     assert not any(target.rglob("*.pyc"))
     assert not (target / ".agents" / "session_state.json").exists()
+    assert not (target / ".claude" / "settings.local.json").exists()
     assert not (target / ".claude" / "session_state.json").exists()
 
 

@@ -59,7 +59,7 @@ _FRAGMENTS = {
 # Directories to copy verbatim
 _COPY_DIRS = [".agents", ".claude", ".codex", ".githooks", "agent_roadmaps"]
 _BASE_IGNORE = shutil.ignore_patterns(
-    "__pycache__", "*.pyc", "*.pyo", ".DS_Store", "session_state.json"
+    "__pycache__", "*.pyc", "*.pyo", ".DS_Store", "session_state.json", "settings.local.json"
 )
 
 
