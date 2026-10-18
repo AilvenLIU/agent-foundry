@@ -17,8 +17,6 @@ __pycache__/
 *.pyd
 
 # Distribution / packaging
-!.agents/skills/build/
-!.claude/skills/build/
 dist/
 /build/
 *.egg-info/
@@ -143,8 +141,3 @@ logs/
 # Documentation
 docs/_build/
 docs/.doctrees/
-
-# Claude Code session state (temporary, not committed)
-.claude/session_state.json
-.agents/session_state.json
-.agents/capabilities.yml.bak

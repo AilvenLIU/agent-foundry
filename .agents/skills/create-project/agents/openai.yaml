@@ -1,4 +1,0 @@
-interface:
-  display_name: "Create Project"
-  short_description: "Generate a project from Agent Foundry"
-  default_prompt: "Use $create-project to initialise a new project from Agent Foundry."

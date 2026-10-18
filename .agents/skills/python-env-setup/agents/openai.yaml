@@ -1,4 +1,0 @@
-interface:
-  display_name: "Python Environment"
-  short_description: "Diagnose and repair Poetry environments"
-  default_prompt: "Use $python-env-setup to diagnose this Poetry environment."
