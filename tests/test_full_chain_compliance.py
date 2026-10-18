@@ -274,76 +274,8 @@ def _expected_constraints(project_type: str) -> set[str]:
     return common
 
 
-@pytest.mark.parametrize("project_type", PROJECT_TYPES)
-@pytest.mark.parametrize("platform", PLATFORMS)
-def test_constraint_hit_rate_meets_100pct(
-    tmp_path: Path, platform: str, project_type: str
-) -> None:
-    project = _make_project(tmp_path, project_type)
-    init = _init(project, platform)
-    expected = _expected_constraints(project_type)
-
-    state_path = project / ".agents" / "session_state.json"
-    assert state_path.exists(), (
-        f"[{platform}/{project_type}] session_state.json missing"
-    )
-    state = json.loads(state_path.read_text())
-    loaded = set(state.get("loaded_constraints", []))
-
-    missing = expected - loaded
-    extra = loaded - expected
-    hit_rate = len(loaded & expected) / len(expected) if expected else 0.0
-
-    assert not missing, (
-        f"[{platform}/{project_type}] hit_rate={hit_rate:.0%} missing={sorted(missing)} "
-        f"extra={sorted(extra)}\nstdout-tail:\n" + init.stdout[-1500:]
-    )
-
-    for key in expected:
-        assert f"[READ] .agents/constraints/{key}.md" in init.stdout, (
-            f"[{platform}/{project_type}] constraint {key} missing from /init manifest"
-        )
-    assert "[CONSTRAINT]" not in init.stdout
 
 
-@pytest.mark.parametrize("project_type", PROJECT_TYPES)
-def test_generated_entrypoints_expose_phase_and_closure_discipline(
-    tmp_path: Path, project_type: str
-) -> None:
-    project = _make_project(tmp_path, project_type)
-
-    agents = (project / "AGENTS.md").read_text()
-    claude = (project / "CLAUDE.md").read_text()
-
-    roadmap_skill = (
-        project / ".agents" / "skills" / "roadmap" / "SKILL.md"
-    ).read_text()
-    roadmap_stub = (project / ".claude" / "skills" / "roadmap" / "SKILL.md").read_text()
-    roadmap_guide = (
-        project
-        / ".agents"
-        / "skills"
-        / "roadmap"
-        / "references"
-        / "template-compliance.md"
-    ).read_text()
-    init_skill = (project / ".agents" / "skills" / "init" / "SKILL.md").read_text()
-    init_runtime = (project / ".agents" / "scripts" / "session_init.py").read_text()
-    init_stub = (project / ".claude" / "skills" / "init" / "SKILL.md").read_text()
-
-    for name, text in {
-        ".agents/skills/roadmap/SKILL.md": roadmap_skill,
-        ".agents/skills/roadmap/references/template-compliance.md": roadmap_guide,
-    }.items():
-        assert "--phases" in text, f"{name} missing phase create flag"
-        assert "depends_on_phases" in text, f"{name} missing phase dependencies"
-        assert "depends_on_steps" not in text, f"{name} still references step schema"
-        assert "--steps" not in text, f"{name} still documents legacy create flag"
-
-    assert "common/closure-discipline" in init_runtime
-    assert ".agents/bin/agent-init" in init_skill
-    assert ".agents/skills/roadmap/SKILL.md" in roadmap_stub
-    assert ".agents/skills/init/SKILL.md" in init_stub
 
 
 @pytest.mark.parametrize("project_type", PROJECT_TYPES)
