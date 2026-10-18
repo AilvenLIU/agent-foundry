@@ -19,16 +19,24 @@ Python projects: run `poetry init` next. Hybrid projects use nanobind only.
 
 ## Existing project with an older copy
 
-Older projects may carry the develop/master release shim (`master-merge-gate` workflow,
-`agent-release`, the `branch-governance` skill, ADRs 0002-0005), `CONTRIBUTING.md`, long
-`AGENTS.md`/`CLAUDE.md` files, and the foundry's own `.agents/scripts/tests`. To update one:
+Updating a repo from the template is a per-file three-way merge, not a copy:
 
-1. Replace `AGENTS.md` with the composed template (common plus fragments, see `_FRAGMENTS` in
-   `init.py`) and `CLAUDE.md` with `templates/common/CLAUDE.md`. Move project-specific facts from
-   the old files into a short `## Project` section; drop anything restating the template.
-2. Refresh `.agents/` and `.claude/skills` from this repository; keep project-owned skills.
-3. Remove the shim pieces listed above and move to feature branch -> PR -> default branch.
-4. Do not bulk-delete the project's tests or docs. List the largest test and doc areas and let the
-   user decide what to cut. Keep `agent_roadmaps/`: the roadmap tool reads existing
-   `roadmap.yml` files; fold any invariant that still matters into the phase's `ROADMAP.md` and
-   do not write phases ahead of time.
+1. Generate a reference of the same type: `printf '1\n' | python3 .agents/skills/create-project/scripts/init.py /tmp/ref` (1 python, 2 cpp, 3 hybrid).
+2. On a branch cut from the repo's integration branch, run
+   `python3 .agents/skills/create-project/scripts/sync.py <repo> /tmp/ref`. It detects the
+   foundry commit the repo last synced from (or take `--base <commit>`), then per file:
+   template-owned and untouched -> updated; changed only by the repo -> kept; changed by both ->
+   merged; template-dropped and untouched (the old release shim, self-tests) -> removed. Resolve
+   any `CONFLICT` by hand: take the template when it already contains the repo's fix, keep the
+   repo's file when it carries project behaviour (for example a bounded build or a stricter
+   commit guard).
+3. `AGENTS.md` = `templates/common/AGENTS.md` + the language fragments (`_FRAGMENTS` in
+   `init.py`) + a short `## Project` section of facts an agent cannot read from the code, taken
+   from the repo's own README and docs. `CLAUDE.md` = `templates/common/CLAUDE.md`.
+4. A CPU-only C++ or hybrid project has no CUDA: delete the CUDA bullets from the generated
+   `AGENTS.md` and keep the rest. Adapt layout and build commands to the repo's real ones.
+5. Remove the project's own shim assets (merge-gate and metadata-guard workflows, gate script, their
+   tests). Do not bulk-delete product tests or docs; list the largest areas and let the user decide.
+   Keep `agent_roadmaps/`: the roadmap tool reads existing `roadmap.yml` files.
+6. Check: workflows and manifests parse, the init audit passes, `verify_skills.py` passes,
+   `agent-roadmap validate` passes for every phase, and the repo's own lint and targeted tests.
