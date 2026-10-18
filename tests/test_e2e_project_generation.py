@@ -46,14 +46,12 @@ def _assert_common_generated_assets(target: Path, project_type: str) -> None:
     assert (
         target / ".agents" / "constraints" / "common" / "karpathy-guidelines.md"
     ).exists()
-    assert (
-        target / ".agents" / "constraints" / "common" / "master-merge-policy.md"
-    ).exists()
     assert (target / ".agents" / "project.yml").exists()
     assert (target / ".agents" / "scripts" / "session_init.py").exists()
     assert (target / ".codex" / "hooks.json").exists()
     assert (target / ".codex" / "hooks" / "pre_tool_use.py").exists()
-    assert (target / ".github" / "workflows" / "master-merge-gate.yml").exists()
+    assert (target / ".githooks" / "commit-msg").exists()
+    assert not (target / ".github").exists()
     assert not (target / ".codex" / "skills").exists()
     assert not (target / ".agents" / "skills" / "bazel").exists()
     assert not (target / ".claude" / "skills" / "bazel").exists()
@@ -104,17 +102,16 @@ def _assert_common_generated_assets(target: Path, project_type: str) -> None:
     assert (target / ".agents" / "bin" / "agent-precommit").exists()
     assert (target / ".agents" / "bin" / "agent-check-constraints").exists()
     assert (target / ".agents" / "bin" / "agent-roadmap").exists()
-    assert (target / ".agents" / "bin" / "agent-release").exists()
     assert (target / ".agents" / "bin" / "_agent_common.sh").exists()
     tracked_develop = set(
         subprocess.run(
-            ["git", "-C", str(target), "ls-tree", "-r", "--name-only", "develop"],
+            ["git", "-C", str(target), "ls-tree", "-r", "--name-only", "main"],
             capture_output=True,
             text=True,
             check=True,
         ).stdout.splitlines()
     )
-    assert ".agents/bin/agent-release" in tracked_develop
+    assert ".githooks/commit-msg" in tracked_develop
     assert ".agents/skills/build/SKILL.md" in tracked_develop
     assert ".claude/skills/build/SKILL.md" in tracked_develop
     assert (target / "agent_roadmaps" / "README.md").exists()

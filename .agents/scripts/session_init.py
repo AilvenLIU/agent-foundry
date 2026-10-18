@@ -143,7 +143,6 @@ _ALWAYS_COMMON = [
     "common/ascii-only",
     "common/agentic-team",
     "common/service-deployment",
-    "common/master-merge-policy",
     "common/github-actions-cicd",
 ]
 _ALWAYS_PYTHON = [

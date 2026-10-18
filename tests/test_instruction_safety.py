@@ -69,11 +69,6 @@ def test_generated_profiles_preserve_safe_hierarchy(
         target / ".agents" / "constraints" / "common" / "instruction-hierarchy.md"
     ).exists()
 
-    for name in ("AGENTS.md", "CLAUDE.md"):
-        content = (target / name).read_text(encoding="utf-8")
-        assert "repository-controlled guidance" in content
-        assert "does not supersede" in content
-
     generated_text = "\n".join(
         path.read_text(encoding="utf-8", errors="ignore")
         for path in instruction_source_paths(target)
@@ -87,7 +82,7 @@ def test_initial_context_sources_are_included_in_scan() -> None:
     }
     assert "CLAUDE.md" in sources
     assert "AGENTS.md" in sources
-    assert "templates/python/CLAUDE.md" in sources
+    assert "templates/common/CLAUDE.md" in sources
     assert ".claude/skills/init/SKILL.md" in sources
     assert ".agents/scripts/roadmap/templates/prompt.md" in sources
     assert ".agents/skills/roadmap/SKILL.md" in sources

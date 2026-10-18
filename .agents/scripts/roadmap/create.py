@@ -259,7 +259,7 @@ def _parse_args(argv=None):
             "Examples:\n"
             "  create.py strategy-rebuild\n"
             "  create.py strategy-rebuild --phases 3 --phase-names baseline refactor rollout\n"
-            "  create.py strategy-rebuild 'Quant stack overhaul' --phases 2 --phase-names core hardening\n"
+            "  create.py strategy-rebuild 'Quant stack overhaul' --phases 2 --phase-names core delivery\n"
         ),
     )
     parser.add_argument("name", help="Roadmap slug (lowercase-hyphen format)")

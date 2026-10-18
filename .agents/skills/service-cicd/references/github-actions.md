@@ -39,11 +39,10 @@ service root while privileged helpers remain root-owned.
 
 Unless a durable, reviewed project-specific release policy defines another
 channel, automatic publication and production deployment use only `push` events
-for `master`. Gate privileged jobs on `github.ref == 'refs/heads/master'` and
+for the default branch. Gate privileged jobs on `github.ref == 'refs/heads/main'` (or `master`) and
 promote the immutable artefact for the event `github.sha`; do not resolve a
-branch, tag, or workflow input later. `release/*` is a review buffer, not a
-default deployment or publication trigger. Manual dispatch is an operator action
-and needs explicit authorisation for a verified `master` artefact. For a dedicated
+branch, tag, or workflow input later. Manual dispatch is an operator action
+and needs explicit authorisation for a verified default-branch artefact. For a dedicated
 server, privileged deployment must use a canonical root under `/data/`, `~/data/`,
 or another approved dedicated data volume; it must reject `/var/`, `/srv/`,
 `/opt/`, `/usr/`, `/usr/local/`, and other system-owned roots unless a durable,

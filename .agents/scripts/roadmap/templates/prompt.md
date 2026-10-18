@@ -43,10 +43,9 @@ Before any implementation work:
 
 ## Parallel Sub-Agent Use (when applicable)
 
-If the active task decomposes into independent, read-heavy or research-heavy
-sub-tasks, you SHOULD explicitly launch an agentic team in parallel rather than
-executing sequentially. See `.agents/constraints/common/agentic-team.md` for the
-full policy.
+If the active task has independent, read-heavy sub-tasks, you may run them in
+parallel (`.agents/constraints/common/agentic-team.md`). Use sub-agents only when
+they save real time.
 
 Parallelisation MUST NOT violate:
 - single-active-task rule (one task active per phase)

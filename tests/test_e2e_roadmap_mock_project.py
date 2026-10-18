@@ -137,7 +137,7 @@ def test_completed_phase_is_not_deleted_while_later_phase_remains(
     )
     assert create.returncode == 0, create.stdout + "\n" + create.stderr
 
-    for _ in range(3):
+    for _ in range(1):  # a fresh phase is scaffolded with a single task
         result = _run(
             ["bash", ".agents/bin/agent-roadmap", "update", "complete-task"],
             project_root,

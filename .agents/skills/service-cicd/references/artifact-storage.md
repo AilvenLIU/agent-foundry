@@ -125,21 +125,18 @@ artefact API is never exception-eligible at all.
 
 The default small rolling set is:
 
-- the three newest successful, verified `master` records;
-- the two newest successful, verified `develop` records; and
+- the three newest successful, verified default-branch records; and
 - any record explicitly marked `live`, `rollback`, `pinned`, `held`, or
   `activating`.
 
-Records from pull requests, feature branches, release branches, hotfix
-branches, tags, other refs, cancelled runs, and failed builds are not retained
+Records from pull requests, feature branches, tags, other refs, cancelled runs, and failed builds are not retained
 as release artefacts. Preserve failure information in ordinary workflow logs or
 a short-lived local diagnostic store when required; do not turn it into an
 unbounded artefact history or a GitHub-upload workaround.
 
 Branch classification comes from the immutable workflow event and recorded
-source ref, not from a manually supplied name. A successful `develop` record
-may be retained for validation and promotion review, but retention does not
-grant it production-release or deployment authority.
+source ref, not from a manually supplied name. Retention never grants a record
+production-release or deployment authority.
 
 Pruning MUST:
 

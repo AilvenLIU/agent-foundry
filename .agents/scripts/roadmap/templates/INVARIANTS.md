@@ -29,8 +29,8 @@ Define system boundaries and behavior that must not regress in this phase.
 
 ## 4. Quality and Safety
 
-- Existing test suite must remain green.
-- New changes must include adequate validation.
+- The existing tests keep passing.
+- Test and verify in proportion to risk; do not add validation machinery beyond that.
 - No silent behavior changes are allowed.
 
 ## 5. Process Invariants

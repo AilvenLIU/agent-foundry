@@ -147,6 +147,8 @@ class RepoVerifier:
                     claude_content = (self.repo_root / "CLAUDE.md").read_text(
                         encoding="utf-8"
                     )
+                    if "@AGENTS.md" in claude_content:  # CLAUDE.md imports AGENTS.md
+                        claude_content += agents_content
                     if skill_id not in claude_content:
                         self.errors.append(
                             f"CLAUDE.md does not expose required skill: {skill_id}"

@@ -128,7 +128,7 @@ def check_git_workflow_constraints() -> List[ConstraintViolation]:
         branch = result.stdout.strip()
 
         # Check if on protected branch
-        protected_branches = ["master", "main", "develop"]
+        protected_branches = ["master", "main"]
         if branch in protected_branches:
             violations.append(
                 ConstraintViolation(

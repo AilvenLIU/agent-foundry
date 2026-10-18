@@ -94,7 +94,7 @@ python3 -m pytest tests/test_instruction_safety.py tests/test_e2e_project_genera
 ```
 
 The constraint wrapper intentionally reports a protected-branch violation when
-run on `master`, `main`, or `develop`; instruction safety must still be absent
+run on `master` or `main`; instruction safety must still be absent
 from that report.
 
 The generation tests create Python, C++/CUDA, and hybrid projects with the

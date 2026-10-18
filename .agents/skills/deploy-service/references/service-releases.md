@@ -23,10 +23,10 @@ activation pointer or validated environment file.
 
 Unless a durable, reviewed project-specific release policy states otherwise,
 automatic activation accepts only release metadata for the exact SHA produced by
-a `master` update. Record that `master` SHA with the digest before activation.
-A release candidate from `develop`, `release/*`, or `hotfix/*` may be tested,
-but it has no default authority to activate production. Manual recovery remains
-an approved operator action using a verified `master` artefact. Unless a durable,
+a default-branch update. Record that SHA with the digest before activation.
+A build from any other branch may be tested but has no default authority to
+activate production. Manual recovery remains
+an approved operator action using a verified default-branch artefact. Unless a durable,
 reviewed project-specific policy says otherwise, activation metadata must name a
 canonical dedicated data root beneath `/data/`, `~/data/`, or another approved
 data volume; it must reject system-owned roots such as `/var/`, `/srv/`, or

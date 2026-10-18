@@ -6,7 +6,7 @@ project_type: hybrid
 project_profile:
   language: [python, cpp]
   build_system: scikit-build-core
-  bindings: pybind11
+  bindings: nanobind
   distribution: pypi-wheel
   hardware_targets: [cuda]
   external_dependencies: system_cuda

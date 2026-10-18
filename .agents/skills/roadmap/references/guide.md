@@ -23,7 +23,7 @@ This skill manages roadmap phases under `agent_roadmaps/phase-*/` with:
 ```bash
 .agents/bin/agent-roadmap create strategy-upgrade \
   --phases 3 \
-  --phase-names foundation execution hardening
+  --phase-names core ingest reporting
 ```
 
 ### Validate schema

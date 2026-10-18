@@ -42,6 +42,21 @@ project artefacts.
 5. Generates session handoff files under `sessions/`.
 6. Treats roadmap files as temporary workspace that must be removed after full completion.
 
+## Planning in proportion
+
+- A phase is a vertical slice that ends with something that runs and can be demonstrated,
+  roughly one to three days of work: a feature, a pipeline stage, an end-to-end path.
+- Testing and verification belong inside the task they cover. Do not create phases or tasks
+  whose only output is tests, validation, hardening, documentation, tooling, or quality gates.
+- Detail only the active phase. Later phases are a name, a goal, and a "done when" until they
+  are next; plans written far ahead are discarded when the first phase teaches something.
+- Keep `ROADMAP.md` to about a page and a phase to three to six tasks. If a phase needs more,
+  split it by deliverable, not by activity.
+- "Done when" is something you run and observe, not a report, manifest, or checklist.
+- State an invariant once, in the phase where it starts; do not copy it into later phases.
+- A session handoff is a few lines: where things stand, surprises, the next step. Do not
+  re-measure what the code already shows or review your own review.
+
 ## Critical rules
 
 - At most one phase may be active.

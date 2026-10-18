@@ -67,10 +67,8 @@ class Bindings(Enum):
     """FFI/binding layer options."""
 
     NONE = "none"
-    NANOBIND = "nanobind"
-    PYBIND11 = "pybind11"
-    TVM_FFI = "tvm-ffi"
-    CTYPES = "ctypes"
+    NANOBIND = "nanobind"  # the only binding library for projects we own
+    UPSTREAM = "upstream"  # a fork keeps the binding library its upstream uses
 
 
 class Distribution(Enum):

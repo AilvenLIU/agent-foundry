@@ -111,14 +111,14 @@ not implied deployment permissions.
 ## Default Automatic Promotion Authority
 
 Unless a durable, reviewed project-specific release policy states otherwise,
-automatic production activation is authorised only by an update to `master`.
+automatic production activation is authorised only by an update to the default branch.
 The deployment manifest and host record MUST identify the exact updated
-`master` SHA and its immutable artefact digest. A `develop`, `release/*`, or
-`hotfix/*` update may produce a validation candidate, but it has no default
-authority to activate a production service or publish a release version.
+SHA and its immutable artefact digest. A build from any other branch may produce a
+validation candidate, but it has no default authority to activate a production
+service or publish a release version.
 
 A manual deployment or rollback is an explicitly approved operator action, not
-an automatic channel. It MUST promote a verified artefact from `master` and use
+an automatic channel. It MUST promote a verified artefact from the default branch and use
 the same activation, health, and rollback controls.
 
 The default automated deploy job and host helper MUST reject a release metadata

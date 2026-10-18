@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Initialise a new project from Agent Foundry.
 
-Copies the shared template tree (.agents/, .claude/, .codex/, .github/, agent_roadmaps/) verbatim,
+Copies the shared template tree (.agents/, .claude/, .codex/, .githooks/, agent_roadmaps/) verbatim,
 then overlays the language-specific files from
 templates/<language>/ onto the target directory using the language's
-generic file names (CLAUDE.md, AGENTS.md, CONTRIBUTING.md, .gitignore).
+generic file names (.gitignore, poetry.toml), and composes AGENTS.md from
+templates/common/AGENTS.md plus the language fragments; CLAUDE.md imports it.
 """
 
 import shutil
@@ -31,39 +32,43 @@ def prompt_project_type() -> str:
             print("Invalid choice. Please enter 1, 2, or 3.")
 
 
-# Files to copy from templates/<language>/<src> to <target>/<dst>.
-# (The source directory is templates/<language>/, the dst path is relative to
-# the target project root.)
+# Files copied from templates/<language>/<src> to <target>/<dst>.
 _FILE_MAP = {
     "python": [
-        ("AGENTS.md", "AGENTS.md"),
-        ("CLAUDE.md", "CLAUDE.md"),
-        ("CONTRIBUTING.md", "CONTRIBUTING.md"),
         (".gitignore", ".gitignore"),
         ("project.yml", ".agents/project.yml"),
         ("poetry.toml", "poetry.toml"),
     ],
     "cpp": [
-        ("AGENTS.md", "AGENTS.md"),
-        ("CLAUDE.md", "CLAUDE.md"),
-        ("CONTRIBUTING.md", "CONTRIBUTING.md"),
         (".gitignore", ".gitignore"),
         ("project.yml", ".agents/project.yml"),
     ],
     "hybrid": [
-        ("AGENTS.md", "AGENTS.md"),
-        ("CLAUDE.md", "CLAUDE.md"),
-        ("CONTRIBUTING.md", "CONTRIBUTING.md"),
         (".gitignore", ".gitignore"),
         ("project.yml", ".agents/project.yml"),
     ],
 }
 
+# AGENTS.md = templates/common/AGENTS.md followed by these templates/<name>/AGENTS.md fragments.
+_FRAGMENTS = {
+    "python": ["python"],
+    "cpp": ["cpp"],
+    "hybrid": ["cpp", "python", "hybrid"],
+}
+
 # Directories to copy verbatim
-_COPY_DIRS = [".agents", ".claude", ".codex", ".github", "agent_roadmaps"]
-_COPY_IGNORE = shutil.ignore_patterns(
+_COPY_DIRS = [".agents", ".claude", ".codex", ".githooks", "agent_roadmaps"]
+_BASE_IGNORE = shutil.ignore_patterns(
     "__pycache__", "*.pyc", "*.pyo", ".DS_Store", "session_state.json"
 )
+
+
+def _COPY_IGNORE(directory: str, names: list[str]) -> set[str]:
+    """Skip caches and the foundry's own infrastructure tests (.agents/scripts/tests)."""
+    skipped = set(_BASE_IGNORE(directory, names))
+    if Path(directory).name == "scripts" and Path(directory).parent.name == ".agents":
+        skipped |= {"tests"} & set(names)
+    return skipped
 
 
 def _write_if_missing(path: Path, content: str) -> None:
@@ -164,6 +169,11 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
             dst = target_dir / dst_name
             dst.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src, dst)
+    templates = template_root / "templates"
+    parts = [templates / "common" / "AGENTS.md"]
+    parts += [templates / name / "AGENTS.md" for name in _FRAGMENTS[project_type]]
+    (target_dir / "AGENTS.md").write_text("\n".join(p.read_text() for p in parts))
+    shutil.copy2(templates / "common" / "CLAUDE.md", target_dir / "CLAUDE.md")
     step += 1
 
     # 3. Copy LICENSE if present
@@ -227,7 +237,7 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
             "[build-system]\n"
             "requires = [\n"
             '  "scikit-build-core",\n'
-            '  "pybind11",\n'
+            '  "nanobind>=2.12",\n'
             '  "ninja",\n'
             '  "cmake"\n'
             "]\n"
@@ -238,6 +248,7 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
             'requires-python = ">=3.10"\n\n'
             "[tool.scikit-build]\n"
             'cmake.build-type = "RelWithDebInfo"\n'
+            'wheel.py-api = "cp312"  # matches nanobind STABLE_ABI\n'
             'build-dir = "build/{wheel_tag}"\n'
             'wheel.packages = ["python/myproject"]\n',
         )
@@ -276,16 +287,20 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
         )
         _write_if_missing(
             target_dir / "bindings" / "python" / "CMakeLists.txt",
-            "find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)\n"
-            "find_package(pybind11 CONFIG REQUIRED)\n\n"
-            "pybind11_add_module(_core_ext bindings.cpp)\n"
+            "find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)\n"
+            "execute_process(\n"
+            '  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir\n'
+            "  OUTPUT_STRIP_TRAILING_WHITESPACE\n"
+            "  OUTPUT_VARIABLE nanobind_ROOT)\n"
+            "find_package(nanobind CONFIG REQUIRED)\n\n"
+            "nanobind_add_module(_core_ext STABLE_ABI bindings.cpp)\n"
             "target_link_libraries(_core_ext PRIVATE myproject_core)\n"
             "install(TARGETS _core_ext DESTINATION myproject)\n",
         )
         _write_if_missing(
             target_dir / "bindings" / "python" / "bindings.cpp",
-            "#include <pybind11/pybind11.h>\n\n"
-            "PYBIND11_MODULE(_core_ext, module) {\n"
+            "#include <nanobind/nanobind.h>\n\n"
+            "NB_MODULE(_core_ext, module) {\n"
             '  module.doc() = "myproject native bindings";\n'
             "}\n",
         )
@@ -299,7 +314,7 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
     # 5. Create README.md
     print(f"[{step}] Creating README.md...")
     (target_dir / "README.md").write_text(
-        "# Project Name\n\nSee [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.\n"
+        "# Project Name\n"
     )
     step += 1
 
@@ -326,99 +341,19 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
 
     # For hybrid projects, keep all skills (both Python and C++ are needed)
 
-    # 7. Git init + two-phase bootstrap
-    # Phase 1: commit only production files to master
-    # Phase 2: commit agent tooling to develop
-    # This ensures master never contains development-stage assets.
+    # 7. Git init: one commit on main. The commit-msg hook rejects Co-Authored-By and
+    # AI-attribution lines.
     print(f"[{step}] Initializing git repository...")
     try:
-        subprocess.run(["git", "init"], cwd=target_dir, capture_output=True, check=True)
-        subprocess.run(
-            ["git", "add", "."], cwd=target_dir, capture_output=True, check=True
-        )
-
-        # Remove development-stage paths from the index before committing to master.
-        # All files remain in the working tree for the develop commit.
-        master_forbidden_roots = [
-            ".ai",
-            ".agents",
-            ".claude",
-            ".codex",
-            "agent_roadmaps",
-        ]
-        master_forbidden_files = ["AGENTS.md", "CLAUDE.md", "CODEX.md"]
-
-        removed_any = False
-        for root in master_forbidden_roots:
-            result = subprocess.run(
-                ["git", "rm", "--cached", "-r", "--ignore-unmatch", root],
-                cwd=target_dir,
-                capture_output=True,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                removed_any = True
-
-        for fname in master_forbidden_files:
-            result = subprocess.run(
-                ["git", "rm", "--cached", "--ignore-unmatch", fname],
-                cwd=target_dir,
-                capture_output=True,
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                removed_any = True
-
-        # Remove docs/ (except docs/changelog/) from the index
-        docs_result = subprocess.run(
-            ["git", "rm", "--cached", "-r", "--ignore-unmatch", "docs"],
-            cwd=target_dir,
-            capture_output=True,
-        )
-        if docs_result.returncode == 0 and docs_result.stdout.strip():
-            removed_any = True
-            # Re-add docs/changelog/ which is exempted from the forbidden list
-            changelog_dir = target_dir / "docs" / "changelog"
-            if changelog_dir.is_dir():
-                subprocess.run(
-                    ["git", "add", "docs/changelog"],
-                    cwd=target_dir,
-                    capture_output=True,
-                )
-
-        if removed_any:
-            print("  Removed development-stage paths from master commit")
-
-        # Phase 1: commit production files to master
-        subprocess.run(
-            ["git", "commit", "-m", "chore: initialise project from agent-foundry"],
-            cwd=target_dir,
-            capture_output=True,
-            check=True,
-        )
-        print("  Phase 1: committed production files to master")
-
-        # Phase 2: create develop branch with all agent scaffolding
-        subprocess.run(
-            ["git", "checkout", "-b", "develop"],
-            cwd=target_dir,
-            capture_output=True,
-            check=True,
-        )
-        # Stage all files again (the working tree still has everything)
-        subprocess.run(
-            ["git", "add", "."],
-            cwd=target_dir,
-            capture_output=True,
-            check=True,
-        )
-        subprocess.run(
-            ["git", "commit", "-m", "chore: add agent tooling scaffolding"],
-            cwd=target_dir,
-            capture_output=True,
-            check=True,
-        )
-        print("  Phase 2: committed agent tooling scaffolding to develop")
-        print("  Git repository initialized with two-phase bootstrap")
-    except subprocess.CalledProcessError as init_error:
+        for args in (
+            ["init", "-b", "main"],
+            ["config", "core.hooksPath", ".githooks"],
+            ["add", "."],
+            ["commit", "-m", "chore: initialise project from agent-foundry"],
+        ):
+            subprocess.run(["git", *args], cwd=target_dir, capture_output=True, check=True)
+        print("  Committed the initial tree on main")
+    except (subprocess.CalledProcessError, FileNotFoundError) as init_error:
         print(f"  Warning: git init/commit failed: {init_error}")
 
     print()
