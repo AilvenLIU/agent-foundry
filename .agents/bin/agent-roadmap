@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: .agents/bin/agent-roadmap <check|create|status|update|handoff|complete|validate> [args]" >&2
+  exit 1
+fi
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=/dev/null
+source "$SCRIPT_DIR/_agent_common.sh"
+REPO_ROOT="$(agent_repo_root)"
+ROADMAP_SCRIPTS="$REPO_ROOT/.agents/scripts/roadmap"
+
+command="$1"
+shift || true
+
+case "$command" in
+  check)
+    run_agent_python "$REPO_ROOT" "$ROADMAP_SCRIPTS/check.py" "$@"
+    ;;
+  create)
+    run_agent_python "$REPO_ROOT" "$ROADMAP_SCRIPTS/create.py" "$@"
+    ;;
+  status)
+    run_agent_python "$REPO_ROOT" "$ROADMAP_SCRIPTS/status.py" "$@"
+    ;;
+  update)
+    run_agent_python "$REPO_ROOT" "$ROADMAP_SCRIPTS/update.py" "$@"
+    ;;
+  handoff)
+    run_agent_python "$REPO_ROOT" "$ROADMAP_SCRIPTS/handoff.py" "$@"
+    ;;
+  complete)
+    run_agent_python "$REPO_ROOT" "$ROADMAP_SCRIPTS/complete.py" "$@"
+    ;;
+  validate)
+    run_agent_python "$REPO_ROOT" "$ROADMAP_SCRIPTS/validate_schema.py" "$@"
+    ;;
+  *)
+    echo "Unknown roadmap command: $command" >&2
+    echo "Supported: check, create, status, update, handoff, complete, validate" >&2
+    exit 1
+    ;;
+esac

@@ -1,48 +1,208 @@
 ---
 name: service-cicd
-description: GitHub Actions CI/CD for Python, C++/CUDA and hybrid services. Covers workflow YAML, hosted and self-hosted runners, immutable artefact builds, the server-local artefact store, auto-deploy after merge to main, protected environments, concurrency, provenance and rollback. Use when writing or reviewing workflows, deploy or publish jobs, Actions secrets or artefact promotion.
+description: Design, implement, review, or troubleshoot GitHub Actions CI/CD and hosted or self-hosted runners for service validation, immutable artefact builds, auto-deployment, auto-release, provenance, protected environments, concurrency, rollback, and release evidence. Use for workflow YAML, CI matrices, deployment or publishing jobs, release channels, GitHub environments, Actions secrets, artefact promotion, or release automation for Python, C++/CUDA, and hybrid Python/C++ projects.
 ---
 
 # Service CI/CD
 
-Use Actions to validate source, build one immutable artefact, and promote those exact bytes through protected deploy jobs. This skill owns the automation. `deploy-service` owns the host: roots, `deploy` account, activation helper, rollback. 
+Use GitHub Actions to validate source, build one immutable artefact on the
+triggering self-hosted server where that is the project contract, and promote
+that exact artefact through protected release and deployment boundaries. Keep
+the primary bytes in the server-local artefact store, not GitHub Actions
+artefact storage. GitHub byte uploads are default-deny: use them only when a
+documented cross-host need cannot use the local store or fixed transfer and the
+current user explicitly requests that specific upload. This skill owns
+automation; read the separate `$deploy-service` skill for host paths,
+activation helpers, runtime services, ingress, and rollback storage.
 
-## Authority and defaults
+## Establish the release contract
 
-- **Automatic publish and deploy run only on a `push` to `main`**, gated on `github.ref == 'refs/heads/main'`, promoting the artefact for the event's `github.sha`. Pull requests, tags, schedules, manual dispatch, and feature branches have no automatic release or deploy authority. Manual deploy and rollback are operator actions on a verified `main` artefact.
-- **Build authority is the project's own**: Poetry for Python; direct CMake + Ninja (+ CPM) for C++/CUDA; for hybrid, direct CMake configure/build/ctest first, then scikit-build-core as packaging bridge with Poetry owning the Python environment. Do not invent a parallel build graph in Actions. Keep CPU-native build and ctest on ordinary runners and put GPU tests on labelled runners (see `gpu-ci`). One artefact per target platform or ABI; a manifest maps each target to digest and compatibility. One runner's success says nothing about another arch, ABI or GPU generation.
-- **Build once, promote the same bytes.** Validation, then one build that writes the artefact and manifest (source SHA, release id, digest, compatibility, toolchain, lock identity, run id) into the server-local store. Publish and deploy verify and promote that record; neither rebuilds, and neither resolves a branch, tag or `latest` later.
-- **Deploy job**: a GitHub-hosted job in a protected environment authenticates as the unprivileged `deploy` user with a repository- and environment-scoped credential (short-lived federation if available, otherwise one rotated restricted key) and calls one fixed host command with validated scalar arguments. It never uses the self-hosted runner identity and never builds a shell or SSH program from event data.
-- **Serialise per environment** with a `concurrency` group and `cancel-in-progress: false`. Concurrency does not prove freshness: the activation boundary re-reads the `main` tip and refuses a rerun of an older event.
-- **Rollback** is a separate protected workflow selecting a retained release id or digest, using the same helper and health gates. No rebuild.
+1. Read `.agents/constraints/common/github-actions-cicd.md`. For auto-deployment or
+   host rollback, also read `.agents/constraints/common/service-deployment.md`;
+   skill guidance does not replace either mandatory constraint.
+   For a master-bound PR/MR, also read
+   `.agents/constraints/common/master-merge-policy.md` and apply the
+   `branch-governance` skill.
+2. Read the repository entrypoints, `.agents/project.yml`, build and test commands,
+   existing workflows, package metadata, host interface, and release policy.
+3. Record the events and approvals for each channel: pull request, merge,
+   version tag, manual dispatch, scheduled build, deployment, and rollback.
+4. Identify trust boundaries: untrusted source, `GITHUB_TOKEN`, environment
+   secrets, package or registry identity, SSH or cloud identity, host helper,
+   and public release surface.
+5. Read [project-profiles.md](references/project-profiles.md) and preserve the
+   profile's build authority. Do not invent a parallel build graph in Actions.
+6. Read [github-actions.md](references/github-actions.md) before writing or
+   reviewing workflow YAML.
+7. When any job uses a persistent self-hosted runner, read
+   [self-hosted-runners.md](references/self-hosted-runners.md). Treat
+   self-hosted CI compute and restricted SSH deployment as separate,
+   complementary trust boundaries.
+8. For packages, images, GitHub Releases, provenance, or cross-platform
+   promotion, read [release-promotion.md](references/release-promotion.md).
+9. For any artefact retention or GitHub-upload decision, read
+   [artifact-storage.md](references/artifact-storage.md).
+10. For an auto-deployment job, also read
+   `.agents/skills/deploy-service/SKILL.md` and its applicable host references.
+11. For any deployment claim, read
+    [deployment-evidence.md](references/deployment-evidence.md).
 
-## Workflow rules
+Stop for operator direction before changing release-channel semantics,
+production approvals, credentials, public package ownership, destructive
+retention, or which refs may deploy.
 
-- Pin every third-party action to a reviewed full 40-character commit SHA with a release comment (`# v4.2.1`). A tag or branch is not a pin. Resolve SHAs from the official repository at write time; never invent placeholders.
-- Set `permissions` explicitly and minimally at workflow and job level (`contents: read` by default); isolate any job needing `contents: write`, packages, attestations or deployments.
-- Pull-request jobs get no production secrets, deploy identities or write tokens. Never check out or run untrusted contents under `pull_request_target`.
-- Treat event fields and dispatch inputs as untrusted: validate before checkout or interpolation, resolve refs to full SHAs, keep them out of shell and SSH strings.
-- Production secrets live in protected GitHub environments (reviewers, branch rules). Never print keys, env files or credential-bearing command lines.
-- A persistent self-hosted runner needs the extra rules in [self-hosted-runners.md](references/self-hosted-runners.md); prefer private repositories.
+## Resolve automatic promotion authority
 
-## Artefact storage (default-deny on GitHub)
+Before creating a release or deployment workflow, find any durable,
+project-specific release policy. If none exists, automatic publication and
+production deployment run only on an update to `master`; on GitHub this is a
+`push` restricted to `master`, using the exact event `github.sha`. The workflow
+builds or promotes only the immutable artefact for that SHA. Do not give a pull
+request, tag, scheduled run, manual dispatch, `develop`, `release/*`, or
+`hotfix/*` default automatic release/deployment authority. A release branch is
+a validation buffer, not a production trigger. For a dedicated server, the
+default deploy job targets a canonical root beneath `/data/`, `~/data/`, or
+another operator-approved dedicated data volume. It MUST NOT target `/var/`,
+`/srv/`, `/opt/`, `/usr/`, `/usr/local/`, or another system-owned hierarchy
+unless the durable project-specific deployment policy explicitly permits it.
+GitHub Actions is the recommended automatic-deployment orchestrator. Its
+protected deploy job uses a repository- and environment-scoped credential for
+the canonical unprivileged host account named `deploy`, which owns the approved
+service root. A local database uses a separate deploy-managed root such as
+`/data/database/<service-or-engine>` or
+`~/data/database/<service-or-engine>`; engine-owned children follow the host
+contract in `$deploy-service`.
 
-Do not use `actions/upload-artifact`, `actions/download-artifact`, the Actions artefact API/CLI or `gh run download` for build, test, release, deploy or rollback bytes. Bytes that must cross a job or host boundary go to the fixed server-local store, a fixed direct transfer, or a protected build-and-promote job. If none exists for a GitHub-hosted build, stop and ask the user to provision one. GitHub Release assets, GitHub Packages and GHCR are public or byte-publication surfaces, not transport, retention or rollback: use them only when the user explicitly asks for that named surface. Attestations and provenance are metadata, not licence to upload bytes. Store layout, rolling retention and the one-day exception: [artifact-storage.md](references/artifact-storage.md).
+## Keep bounded version pushes from minting false evidence
 
-## Pipeline shape
+When adapting `develop` CI for `.agents/bin/agent-release bump`, read the
+bounded-version section in
+[release-promotion.md](references/release-promotion.md). A full-validation
+workflow whose expensive jobs are skipped but whose run still concludes
+`success` MUST NOT satisfy `REQUIRED_SOURCE_CHECKS` at that child SHA.
+
+## Preserve these invariants
+
+- Pull-request CI runs without production secrets or write permissions and
+  cannot execute untrusted code in a privileged `pull_request_target` context.
+- A master-bound PR/MR validates the allowed same-repository source branch and
+  development-stage path deny list before release, build, or deployment work.
+- Every third-party action is pinned to a reviewed full commit SHA. Mutable tags
+  and branches may appear only as explanatory comments, never as the pin.
+- Workflow and job permissions are explicit and least-privilege. Production
+  credentials are scoped to protected GitHub environments.
+- A persistent self-hosted runner uses a dedicated unprivileged identity and
+  holds no deployment key or production activation authority. When CI compute
+  and the deployment target share a host, their principals, credentials,
+  privileged groups, helpers, and writable paths do not overlap.
+- The protected deploy job authenticates as `deploy` by default and invokes one
+  fixed host interface. It does not share credentials between repositories or
+  environments, and it does not use the self-hosted runner identity.
+- The deployable artefact is built and tested once on the triggering server.
+  Publishing and deployment promote the same verified bytes; neither job
+  rebuilds from source or depends on a GitHub Actions artefact upload.
+- Do not add `actions/upload-artifact`, `actions/download-artifact`, or an
+  Actions artefact API/CLI call by default. The only exception has documented
+  technical necessity and a current user who explicitly requests that specific
+  GitHub byte upload; it is non-secret, expires within one day, and is never
+  the release or rollback authority.
+- Do not attach a GitHub Release asset by default. It is a public publication
+  surface, not CI transport, retention, or rollback, and requires a current
+  user who explicitly requests that publication or a durable reviewed policy
+  records prior explicit user authorisation for that exact public surface.
+- The primary artefact record lives in a fixed server-local store with an
+  immutable manifest and a bounded rolling policy: by default three verified
+  `master` records and two verified `develop` records, plus live, rollback,
+  pinned, held, or activating records.
+- A validated release id joins source SHA, artefact digest, workflow run,
+  target compatibility, approvals, host metadata, and rollback evidence.
+- An operational deployment id is not a semantic Git tag. Keep timestamped
+  channel identifiers in the host and artefact evidence plane; derive
+  `release-v<major>.<minor>.<patch>` only from an eligible master manifest.
+- Where promotion includes a deployment gate, publish the semantic tag only
+  after that deployment succeeds for the exact master SHA, isolate the publisher
+  in the only `contents: write` job, and independently verify the resulting tag
+  targets from a fresh read-only job.
+- Deployments are serialized per environment. An older or cancelled run cannot
+  activate after a newer release or prune its rollback target. Re-read the
+  protected-channel tip at the activation boundary because serialization does
+  not make a manually rerun old event current.
+- CI transfers only to a release-specific temporary path and invokes one fixed,
+  narrowly authorized host interface. Never upload and run a fresh root script.
+- Auto-release occurs only after the required CI, policy, provenance, and
+  channel gates pass. Published assets and deployed assets share verified
+  digests.
+- A failed deployment or release gate remains failed. Preserve the last
+  known-good release and actionable evidence instead of weakening the gate.
+- Rollback selects a retained verified release through a protected workflow; it
+  does not rebuild or repair a production checkout.
+
+## Model the pipeline explicitly
+
+Use distinct jobs or reusable workflows when permissions differ:
 
 ```text
-validate -> build -> attest -> deploy (protected env) -> verify
-                                   \-- failure -> protected rollback
+source -> validate -> build -> attest -> approve -> publish/deploy -> verify
+                    |                  |                    |
+                    +-- immutable -----+--------------------+
+                                                        failure
+                                                           |
+                                                protected rollback
 ```
 
-- `validate`: format, lint, static analysis, tests; no secrets.
-- `build`: profile build; commits the immutable store record.
-- `attest`: provenance with minimal write scope.
-- `deploy`: transfer to a release-specific temp path under the host staging area (or let the helper copy), verify host key and digest, call the fixed helper, wait for release-specific health.
+Recommended ownership:
 
-Publishing a package or image: use trusted publishing or short-lived identity, push images by digest (tags are aliases, deploy the digest), verify uploaded version and digest afterwards. Release ids and versions are immutable: a retry may complete missing surfaces or confirm identical bytes, and must reject an existing object with different bytes.
+- `validate`: formatting, lint, static analysis, unit/integration tests; no
+  production secrets.
+- `build`: profile-authoritative build and packaging; commits one immutable
+  server-local artefact record with its digest, compatibility metadata, and
+  test evidence.
+- `attest`: provenance or GitHub artefact attestation metadata with minimal
+  write scope; attestation never authorises byte storage.
+- `publish`: signs or publishes the already-built package, image, or release
+  asset after channel checks.
+- `deploy`: protected environment, environment concurrency, scoped identity,
+  transfer, fixed host command, and release-specific health verification.
+- `rollback`: protected operator-selected retained release, same host interface,
+  same health gates.
 
-## After activation
+Keep deployment and publication independently selectable when a project needs
+one without the other, while preserving artefact identity across both.
 
-Confirm the host-reported identity (target label, hostname, release id, time) matches the intended environment and release, then probe loopback, origin (real hostname and SNI, every address family) and public. Stale unit timestamp, missing release record or absent listener after a green run means secret drift, a different server or an incomplete helper: stop, keep the logs, fix the boundary; do not rerun the workflow repeatedly. Keep the last known-good release on failure.
+## Validate adversarially
+
+Challenge at least these cases:
+
+- a forked pull request edits workflow code and attempts to read secrets
+- a self-hosted runner receives untrusted code, retains state between jobs, or
+  can reach a co-located production identity, credential, helper, or path
+- an action pin is replaced by a tag or an unexpected workflow gains write scope
+- manual input contains shell syntax, traversal, a pull ref, hostile slug, or an
+  unreviewed protected channel
+- tag, branch, and artefact source SHA do not agree
+- build and release jobs produce different bytes or compatibility metadata
+- a workflow adds GitHub artefact transport because jobs run on different hosts
+  even though a local record or fixed transfer exists
+- two deploys overlap, finish out of order, or one is cancelled mid-activation
+- transfer is truncated, substituted, or sent to the wrong environment
+- activation succeeds but release identity, a worker, ingress, FFI, or package
+  verification fails
+- attestations, signatures, retained artefacts, or rollback targets are absent
+- rolling cleanup races with a build, activation, or rollback and removes an
+  unprotected record
+- auto-release partially publishes and a retry would duplicate or mutate it
+
+Use [validation.md](references/validation.md) for the final static, behavioural,
+and failure-injection review. Report checks that could not run and the remaining
+risk rather than claiming unverified coverage.
+
+## Handoff
+
+Deliver the workflow files, reusable workflow contracts, release metadata,
+tests, policy configuration, and operator documentation actually required.
+Report the event/channel model, build matrix, permission and secret boundaries,
+server-local artefact store and rolling counts, artefact/provenance identity,
+the `deploy` credential and host ownership boundary, any local database root
+contract, deployment interface, release and rollback flow, concurrency policy,
+validation evidence, and any explicit GitHub-upload exception with its
+necessity, user request, one-day expiry, and non-rollback status.

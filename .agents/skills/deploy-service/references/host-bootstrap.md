@@ -1,21 +1,61 @@
-# Host bootstrap, supervision, TLS/DNS, firewall
+# Host, ingress, and network bootstrap
 
-## Identities and persistence
+Use this reference for a fresh server or any change to reverse proxy, TLS, DNS,
+firewall, VPN, systemd, users, or persistent storage.
 
-- Create `deploy` as described in SKILL.md. Keep private keys and privileged config root-owned with restrictive modes. Give the reverse-proxy worker directory traversal only; do not make parents or release roots broadly writable to satisfy it.
-- GitHub Actions deploys with a repository- and environment-scoped credential for `deploy` and one fixed forced command or exact `sudo -n` allow-list. A co-located runner uses a different identity.
-- With a local database: create the deploy-managed root, delegate only the engine child, and prove backup and restore before cutover.
-- Persistent state, logs and secrets live outside release directories, each with documented ownership and backup.
+## Inventory before mutation
 
-## Restart policy for dependency daemons
+Capture:
 
-Packaged units (nginx, MTA, php-fpm and similar) often ship `Restart=no` with the default `OOMPolicy=stop`: one OOM-killed child then leaves the whole unit dead until someone intervenes. Check, do not assume:
+- operating-system and package baseline
+- listening TCP and UDP sockets on IPv4 and IPv6
+- addresses, routes, forwarding, firewall, NAT, VPN interfaces, and DNS paths
+- running services, timers, containers, mounts, and disk capacity
+- current DNS records, TLS mode, certificate coverage, and expiry ownership
+- persistent application data, ownership, backup, and restore evidence
+
+Treat existing network services as dependencies. Opening only SSH, HTTP, and
+HTTPS can break a VPN gateway, local resolver, forwarding path, or monitoring
+listener even when the new website itself works.
+
+## Identities and filesystem boundaries
+
+- Unless durable reviewed project policy says otherwise, create one
+  unprivileged deployment account named `deploy` with no interactive shell or
+  broad sudo access. Make it own the approved service deployment root; keep
+  privileged helpers and host policy root-owned.
+- GitHub Actions deploys through a repository- and environment-scoped
+  credential for `deploy` and one fixed forced command or exact `sudo -n`
+  allow-list. A self-hosted runner uses a different identity and cannot write
+  `deploy`-owned production paths.
+- Keep private keys and privileged configuration root-owned with restrictive
+  modes.
+- Give the runtime only the read/write paths it needs. Keep releases immutable
+  and persistent state outside release directories.
+- If a local database is required, create a deploy-managed root beneath
+  `/data/database/`, `~/data/database/`, or another approved data volume.
+  Delegate only the engine child that its runtime identity must own, and verify
+  backup and restore before cutover.
+- Verify directory traversal permissions for the reverse-proxy worker without
+  making unrelated directories broadly writable.
+
+## Supervision of host dependency services
+
+Treat the recovery behaviour of every host service the deployment depends on as
+part of the bootstrap. Do not assume a packaged unit restarts itself.
+
+Inspect what the unit actually does before trusting it:
 
 ```bash
 systemctl show <unit> -p Restart -p RestartSec -p OOMPolicy -p FragmentPath
 ```
 
-Fix with a drop-in, never by editing the packaged unit (`/etc/systemd/system/<unit>.service.d/restart-policy.conf`):
+`Restart=no` with `OOMPolicy=stop` means one OOM-killed child ends the service
+permanently, and the unit then reports `Result: oom-kill` even though its main
+process exited cleanly. That combination is common in distribution packages.
+
+Install a drop-in rather than editing the packaged unit, at
+`/etc/systemd/system/<unit>.service.d/restart-policy.conf`:
 
 ```ini
 [Unit]
@@ -28,18 +68,56 @@ RestartSec=5
 OOMPolicy=continue
 ```
 
-Then `systemctl daemon-reload` (adopts new properties without restarting the unit) and read back `systemctl show <unit> -p Restart -p OOMPolicy -p DropInPaths`. Make the installer do that read-back and fail on mismatch: an installed but ineffective drop-in looks identical to a working one until the outage.
+Reload, then verify the unit adopted it. `daemon-reload` updates a running
+unit's properties without restarting it:
 
-`OOMPolicy=continue` suits a master/worker daemon that respawns children. For a single-process service that cannot survive losing its only worker, let the unit stop and rely on `Restart=`. These units are shared by every site or service on the host, so confirm co-tenants still work, and note that a self-healing unit no longer signals an OOM kill through unit state; add separate OOM detection if alerting depends on it.
+```bash
+systemctl daemon-reload
+systemctl show <unit> -p Restart -p OOMPolicy -p DropInPaths
+```
+
+Put that verification inside the installer and fail the run when it does not
+match. An installed but ineffective drop-in looks identical to a working one
+until the outage it was meant to prevent.
+
+`OOMPolicy=continue` is right for a master/worker daemon because the master
+respawns its children. It is wrong for a single-process service that cannot
+recover from losing its only worker; there, let the unit stop and restart.
+
+Remember the blast radius. These units are usually shared: a reverse proxy
+serves every site on the host and an MTA carries every service's mail, so the
+policy applies to co-tenants too. Confirm the other consumers still work after
+the change, and note that a quietly self-healing unit no longer signals an OOM
+kill through its unit state.
 
 ## TLS and DNS cutover
 
-1. Configure and validate origin TLS before touching public DNS.
-2. Test the new origin with the real hostname and SNI while pointing the request at the new address.
-3. Behind a TLS-terminating edge, require authenticated origin TLS: Cloudflare Origin CA with Full (strict), never Flexible or non-validating Full.
-4. Change only the intended web records; preserve mail and unrelated records. Test IPv4 and IPv6 if both are published.
-5. Keep the previous origin until edge health and rollback are proven. Track certificate expiry; an Origin CA cert is not trusted by direct browser clients, so a direct-origin probe is a diagnostic, not the public path.
+1. Configure and validate origin TLS before changing public DNS.
+2. Test the new origin using the real host name and SNI while directing the
+   request to the new address.
+3. For a TLS-terminating proxy, require authenticated origin TLS. With
+   Cloudflare Origin CA, use Full (strict), not Flexible or non-validating Full.
+4. Change only the intended web records. Preserve mail and unrelated service
+   records.
+5. Test both IPv4 and IPv6 when both are published.
+6. Keep the previous origin available until edge health and rollback are
+   proven.
 
-## Firewall
+Track certificate expiry. Origin-only certificates are not necessarily trusted
+by direct browser clients, so distinguish a direct origin diagnostic from the
+public path.
 
-Write a port-and-route plan before enabling or replacing policy. Keep required UDP listeners, VPN-interface DNS, forwarding and NAT. Keep an out-of-band recovery route or provider console open while changing remote access. Test three ways: host loopback to the app; through the proxy with the real hostname; an external client via public DNS and the edge.
+## Firewall and recovery
+
+Write a port-and-route plan before enabling or replacing firewall policy.
+Preserve required UDP listeners, VPN-interface DNS, forwarding rules, and NAT.
+Keep an out-of-band recovery route or provider console available while changing
+remote access controls.
+
+Test from three perspectives where possible:
+
+1. host loopback to the application
+2. host or trusted network through the reverse proxy with the real host name
+3. external client through public DNS and any edge proxy
+
+Diagnose DNS, transport, TLS, ingress, and application identity separately.
