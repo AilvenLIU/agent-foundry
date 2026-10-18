@@ -31,7 +31,7 @@ If unsure, ask before acting.
 This repository uses a modular constraint system. Instead of duplicating all technical requirements here, detailed constraints are organised in `.agents/constraints/`:
 
 ### Python-Specific Constraints
-- `python/testing.md` - pytest, coverage (80%+), test organisation
+- `python/testing.md` - pytest, what to test
 - `python/formatting.md` - ruff (sole formatter, linter, and import sorter), PEP 8, naming conventions
 - `python/type-checking.md` - Type hints (mandatory), mypy configuration
 - `python/dependencies.md` - poetry-managed dependency workflow
@@ -121,7 +121,6 @@ Why is this change necessary? What problem does it solve?
 
 ## Testing
 - Unit tests added/modified
-- Test coverage: X%
 - How to verify the changes
 
 ## Dependencies
@@ -163,7 +162,6 @@ This checks:
 - Linting and import order (`ruff check`)
 - Type checking (mypy)
 - Tests (pytest)
-- Coverage threshold
 
 Fix any issues before opening the PR.
 
@@ -192,12 +190,12 @@ Fix any issues before opening the PR.
 Review for:
 - **Correctness**: Does the code do what it claims?
 - **Type Safety**: Are type hints complete and correct?
-- **Testing**: Adequate test coverage (80%+)?
+- **Testing**: Are the risky parts tested?
 - **Readability**: Clear code, good naming, documentation?
 - **Security**: No SQL injection, XSS, hardcoded secrets?
 
 **Review checklist**:
-- [ ] Tests pass and provide good coverage
+- [ ] Tests pass
 - [ ] Type checking passes (mypy)
 - [ ] Code is formatted (`ruff format --check`)
 - [ ] Linting and import order pass (`ruff check`)
@@ -219,7 +217,6 @@ For detailed requirements, see `.agents/constraints/python/` and run `/init`.
 - **Linter / import sorter**: `ruff check` (includes the `I` rule for import order)
 - **Type checker**: mypy (strict mode)
 - **Test framework**: pytest
-- **Coverage**: pytest-cov (minimum 80%)
 
 `ruff` and `mypy` are the only sanctioned static-analysis tools. Adding `black`,
 `isort`, `flake8`, `pylint`, `autopep8`, or `yapf` is forbidden.
@@ -230,8 +227,6 @@ For detailed requirements, see `.agents/constraints/python/` and run `/init`.
 - Configure mypy in pyproject.toml
 
 ### Testing
-- **Minimum coverage**: 80%
-- **Target coverage**: 90%+
 - Test file naming: `test_<module>.py`
 - Use fixtures for setup/teardown
 
@@ -300,7 +295,6 @@ All ordinary PRs MUST pass CI checks:
 - Type checking passes (mypy)
 - Code formatting check (`ruff format --check`)
 - Linting and import order pass (`ruff check`)
-- Coverage threshold met (80%+)
 
 The bounded version-only push runs focused structural proof instead of the full
 build. On the sole identity-proved release PR, the required validation status

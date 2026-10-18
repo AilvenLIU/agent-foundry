@@ -91,7 +91,7 @@ def test_hybrid_entrypoints_match_the_generated_profile_schema() -> None:
     expected_profile = [
         "language: [python, cpp]",
         "build_system: scikit-build-core",
-        "bindings: pybind11",
+        "bindings: nanobind",
         "distribution: pypi-wheel",
         "hardware_targets: [cuda]",
         "external_dependencies: system_cuda",

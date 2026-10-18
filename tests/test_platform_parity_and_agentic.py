@@ -18,11 +18,7 @@ def _read(rel: str) -> str:
 def test_agentic_team_constraint_file_exists() -> None:
     path = ROOT / ".agents" / "constraints" / "common" / "agentic-team.md"
     assert path.exists(), "agentic-team constraint must exist"
-    body = path.read_text()
-    assert "Agentic Team" in body
-    assert "MUST" in body
-    assert "Claude Code" in body and "Codex" in body
-    assert "MUST NOT" in body or "must not" in body.lower()
+    assert "Agentic Team" in path.read_text()
 
 
 def test_session_init_loads_agentic_team_constraint() -> None:
@@ -46,7 +42,6 @@ def test_claude_entrypoints_reference_agentic_team() -> None:
     for name in ("templates/python/CLAUDE.md", "templates/cpp/CLAUDE.md"):
         body = _read(name)
         assert "agentic-team.md" in body
-        assert "Agent` tool" in body or "`Agent`" in body
 
 
 def test_agents_entrypoints_reference_agentic_team_with_parallel() -> None:

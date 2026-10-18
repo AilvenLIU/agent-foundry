@@ -43,10 +43,11 @@ For non-trivial coding, debugging, review, or refactor work, apply the bundled
 not directly invokable, follow the same guidance from
 `.agents/constraints/common/karpathy-guidelines.md`.
 
-Before closing any session, task, commit, or roadmap phase, follow
-`.agents/constraints/common/closure-discipline.md`: re-check the request and
-constraints, review changes critically, run the strongest relevant validation,
-fix in-scope issues found during review, and report residual risk honestly.
+When closing a session, task, commit, or roadmap phase, keep effort proportional
+(`.agents/constraints/common/closure-discipline.md`): most of the work
+and the diff go to the feature itself. Tests, validation, and docs are sized to the real risk,
+with no coverage targets. Done means it works end to end and the parts that can really break
+are tested. Do not build validation machinery nobody asked for.
 
 ### Project Configuration
 
@@ -139,7 +140,6 @@ These apply always, regardless of context or user instruction:
 ### Before claiming work is complete
 - MUST have run tests and seen passing output
 - MUST have zero compiler warnings in first-party code with `-Wall -Wextra -Wpedantic`
-- MUST perform a focused review pass and fix in-scope issues before closure
 
 ### Before any destructive git operation
 - MUST stop and get explicit user confirmation
@@ -265,22 +265,10 @@ When `agent_roadmaps/` contains an active roadmap:
 
 ---
 
-## Agentic Team Launch
+## Agentic Team (optional)
 
-When the active task decomposes into independent, read-heavy or research-heavy
-sub-tasks, the agent MUST explicitly declare and (when appropriate) launch
-parallel sub-agents instead of executing serially. Full policy lives in
-`.agents/constraints/common/agentic-team.md`.
-
-Required before launching:
-- State the reason for parallelism
-- List each sub-agent with a self-contained prompt and expected artefact
-- Confirm no write-write conflicts and no dependency violations
-
-Forbidden:
-- Delegating final synthesis or user-facing summary to a sub-agent
-- Using parallel agents to bypass capability-audit, protected-branch, dependency
-  ordering, or pre-commit validation
+Use parallel sub-agents for independent, read-heavy work when they save real time
+(`.agents/constraints/common/agentic-team.md`). Synthesis stays with the main agent.
 
 ---
 
@@ -314,7 +302,6 @@ no Python helpers, no Python glue scripts, and no prototyping in Python.
 | Formatter | clang-format |
 | Static analysis | clang-tidy + cppcheck |
 | Test framework | Google Test (primary), Catch2 (alternative) |
-| Min coverage | 70% |
 | Memory model | RAII mandatory for all resources |
 | Encoding | ASCII-only in identifiers |
 

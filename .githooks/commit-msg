@@ -1,0 +1,6 @@
+#!/bin/sh
+# Commit messages never carry AI attribution or co-author trailers.
+if grep -qiE '^co-authored-by:|noreply@(anthropic|openai)\.com|generated (with|by) \[?(claude|codex|chatgpt|copilot)' "$1"; then
+  echo "commit rejected: remove Co-Authored-By / AI attribution lines from the message" >&2
+  exit 1
+fi

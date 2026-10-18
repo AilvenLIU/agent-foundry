@@ -18,7 +18,7 @@ Before editing, Claude Code MUST read `AGENTS.md`, `.agents/project.yml`,
 `.agents/capabilities.yml`, `.agents/constraints/common/`, `.agents/constraints/python/`,
 `.agents/constraints/cpp/`, and `.agents/constraints/hybrid/`. Load relevant skills
 from `.claude/skills/` or `.agents/skills/` before following a workflow. Treat
-constraints as mandatory; when rules conflict, prefer the stricter rule. If a
+constraints as mandatory; when rules conflict, prefer the more specific rule, and ask if that does not settle it. If a
 request conflicts with these constraints, stop and explain. Do not bypass
 hooks, wrappers, `/init`, `/check-constraints`, tests, or pre-commit validation.
 
@@ -68,10 +68,11 @@ Use it for non-trivial coding, debugging, review, and refactor work. It keeps
 assumptions explicit, pushes toward minimal diffs, and requires concrete
 verification before completion.
 
-Before closing any session, task, commit, or roadmap phase, follow
-`.agents/constraints/common/closure-discipline.md`: re-check the request and
-constraints, review changes critically, run the strongest relevant validation,
-fix in-scope issues found during review, and report residual risk honestly.
+When closing a session, task, commit, or roadmap phase, keep effort proportional
+(`.agents/constraints/common/closure-discipline.md`): most of the work
+and the diff go to the feature itself. Tests, validation, and docs are sized to the real risk,
+with no coverage targets. Done means it works end to end and the parts that can really break
+are tested. Do not build validation machinery nobody asked for.
 
 The repository requires British English for user-facing text.
 
@@ -95,7 +96,7 @@ This project uses the `project_profile` schema in `.agents/project.yml`:
 project_profile:
   language: [python, cpp]
   build_system: scikit-build-core
-  bindings: pybind11
+  bindings: nanobind
   distribution: pypi-wheel
   hardware_targets: [cuda]
   external_dependencies: system_cuda
@@ -262,17 +263,7 @@ is completed, delete the roadmap workspace and restore the placeholder
 `agent_roadmaps/README.md`. Durable files outside `agent_roadmaps/` MUST NOT
 carry roadmap-phase identifiers.
 
-## Agentic Team Launch
+## Agentic Team (optional)
 
-For non-trivial tasks that decompose into independent, read-heavy, or
-research-heavy sub-tasks, the agent MUST explicitly propose and (when
-appropriate) launch parallel Claude Code sub-agents via the `Agent` tool
-instead of executing sequentially. Suggested `subagent_type` values:
-
-- `Explore` -- broad codebase search / navigation
-- `Plan` -- design / architecture planning
-- `general-purpose` -- multi-step tasks with unknown scope
-
-Full policy: `.agents/constraints/common/agentic-team.md`. Parallel execution MUST
-NOT bypass capability audit, protected-branch rules, dependency ordering, or
-pre-commit validation.
+Use parallel sub-agents for independent, read-heavy work when they save real time
+(`.agents/constraints/common/agentic-team.md`). Synthesis stays with the main agent.

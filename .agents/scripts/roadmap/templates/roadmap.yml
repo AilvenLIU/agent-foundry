@@ -16,43 +16,19 @@ status:
 # Example: [upstream-roadmap-phase]
 depends_on_phases: <PHASE_DEPENDENCIES>
 
+# Replace the placeholder with the concrete tasks of this phase. Each task delivers part of the
+# feature; tests and verification belong inside the task they cover, not in a task of their own.
 tasks:
   - id: <TASK_PREFIX>-1
-    title: Define implementation baseline for <PHASE_TITLE>
+    title: Deliver <PHASE_TITLE>
     description: >
-      Clarify exact scope, constraints, and acceptance criteria for this phase.
-      Confirm objective boundaries and identify files touched first.
+      Implement what ROADMAP.md names as this phase's goal, test the parts that can
+      really break, and confirm the "Done when" criterion by running it.
     status: active
     effort: medium
     key_files:
       - src/
-      - tests/
     depends_on: []
-
-  - id: <TASK_PREFIX>-2
-    title: Implement dependency-safe core changes for <PHASE_TITLE>
-    description: >
-      Implement the primary code changes for this phase while preserving
-      upstream invariants and compatibility guarantees.
-    status: pending
-    effort: medium
-    key_files:
-      - src/
-    depends_on:
-      - <TASK_PREFIX>-1
-
-  - id: <TASK_PREFIX>-3
-    title: Validate phase result
-    description: >
-      Run required validation, document final state, and prepare branch merge
-      guidance for this phase.
-    status: pending
-    effort: low
-    key_files:
-      - tests/
-      - docs/
-    depends_on:
-      - <TASK_PREFIX>-2
 
 focus:
   current_task: <TASK_PREFIX>-1

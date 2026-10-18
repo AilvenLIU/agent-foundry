@@ -43,10 +43,11 @@ For non-trivial coding, debugging, review, or refactor work, apply the bundled
 not directly invokable, follow the same guidance from
 `.agents/constraints/common/karpathy-guidelines.md`.
 
-Before closing any session, task, commit, or roadmap phase, follow
-`.agents/constraints/common/closure-discipline.md`: re-check the request and
-constraints, review changes critically, run the strongest relevant validation,
-fix in-scope issues found during review, and report residual risk honestly.
+When closing a session, task, commit, or roadmap phase, keep effort proportional
+(`.agents/constraints/common/closure-discipline.md`): most of the work
+and the diff go to the feature itself. Tests, validation, and docs are sized to the real risk,
+with no coverage targets. Done means it works end to end and the parts that can really break
+are tested. Do not build validation machinery nobody asked for.
 
 ### Project Profile
 
@@ -56,7 +57,7 @@ This project uses the `project_profile` schema in `.agents/project.yml`:
 project_profile:
   language: [python, cpp]
   build_system: scikit-build-core
-  bindings: pybind11
+  bindings: nanobind
   distribution: pypi-wheel
   hardware_targets: [cuda]
   external_dependencies: system_cuda
@@ -168,9 +169,8 @@ This runs:
 
 ### Before Claiming Work Is Complete
 
-- MUST have concrete validation evidence from the strongest relevant checks
-- MUST perform a focused review pass and fix in-scope issues before closure
-- MUST report unrun checks, blockers, known limitations, and residual risk
+- MUST have run the tests covering the change and seen them pass
+- MUST say plainly what was not run
 
 ---
 
@@ -296,21 +296,10 @@ carry roadmap-phase identifiers.
 
 ---
 
-## Agentic Team Launch
+## Agentic Team (optional)
 
-For non-trivial tasks that decompose into independent, read-heavy, or
-research-heavy sub-tasks, the agent MUST explicitly propose and (when
-appropriate) launch parallel sub-agents via the platform's agent-launch
-mechanism instead of executing sequentially.
-
-Suggested agent types:
-- `Explore` -- broad codebase search / navigation
-- `Plan` -- design / architecture planning
-- `general-purpose` -- multi-step tasks with unknown scope
-
-Full policy: `.agents/constraints/common/agentic-team.md`. Parallel execution MUST
-NOT bypass capability audit, protected-branch rules, dependency ordering, or
-pre-commit validation.
+Use parallel sub-agents for independent, read-heavy work when they save real time
+(`.agents/constraints/common/agentic-team.md`). Synthesis stays with the main agent.
 
 ---
 
@@ -332,7 +321,7 @@ distribution layer only. This is non-negotiable.
 
 | Permitted | Examples |
 |-----------|---------|
-| Binding layer | `NB_MODULE` / `PYBIND11_MODULE` definitions only |
+| Binding layer | nanobind `NB_MODULE` definitions only (nanobind is the only binding library; a fork keeps its upstream's) |
 | Python-facing type stubs | `.pyi` files |
 | CLI entry points | Thin dispatch — must immediately call C++ |
 | Test orchestration | `pytest` calling C++ extension functions |
@@ -343,7 +332,7 @@ distribution layer only. This is non-negotiable.
 
 1. Design the C++ interface (types, functions, error codes)
 2. Implement and unit-test in C++ (Google Test / Catch2)
-3. Expose via nanobind / pybind11 (minimal binding code)
+3. Expose via nanobind (minimal binding code)
 4. Write thin Python tests calling the C++ extension
 
 **Never start from the Python side.** If asked to add logic in Python that could be

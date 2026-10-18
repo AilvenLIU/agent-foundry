@@ -46,7 +46,7 @@ Python code in a Hybrid project is permitted **only** for these purposes:
 
 | Permitted | Examples |
 |-----------|---------|
-| Binding layer | pybind11 / nanobind `NB_MODULE` / `PYBIND11_MODULE` definitions |
+| Binding layer | nanobind `NB_MODULE` definitions |
 | Python-facing type stubs | `.pyi` stub files |
 | CLI entry points | `argparse` / `click` thin dispatch — must delegate to C++ |
 | Build configuration | `pyproject.toml`, `CMakeLists.txt` integration via scikit-build-core |
@@ -75,7 +75,7 @@ When designing a new feature:
 
 1. **Design the C++ interface first** — types, functions, error codes
 2. **Implement in C++** — unit-tested with Google Test / Catch2
-3. **Expose via nanobind / pybind11** — minimal binding code only
+3. **Expose via nanobind** — minimal binding code only
 4. **Write Python tests** — thin pytest wrappers calling the C++ extension
 5. **Never start from the Python side** and work downward into C++
 
@@ -95,7 +95,7 @@ predictable, even with NumPy vectorisation.
 ### 2.2 Portability
 
 A C++ core can be:
-- Wrapped for Python (pybind11 / nanobind)
+- Wrapped for Python (nanobind)
 - Called from Rust, Go, or Swift via FFI
 - Compiled to WASM
 - Deployed on embedded systems without a Python runtime

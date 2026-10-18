@@ -195,7 +195,7 @@ target_compile_options(mylib PRIVATE
 ### 6.1 CMake Owns the Native Build Graph
 
 CMake is the source of truth for all native build behaviour. It must define
-C++/CUDA targets, pybind11/nanobind modules, compiler features, compile and
+C++/CUDA targets, nanobind modules, compiler features, compile and
 link options, CUDA architectures, native tests, benchmarks, install rules, and
 export rules.
 

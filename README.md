@@ -142,9 +142,8 @@ closure discipline:
   (with a Claude stub at `.claude/skills/karpathy-guidelines/`)
 - via `.agents/constraints/common/karpathy-guidelines.md`, which `init` loads
   automatically into the active session
-- via `.agents/constraints/common/closure-discipline.md`, which requires rigorous
-  review, strongest relevant validation, and explicit residual-risk reporting
-  before session, task, commit, or roadmap phase closure
+- via `.agents/constraints/common/closure-discipline.md`, which keeps effort
+  proportional: the feature first, tests and validation sized to real risk, no coverage targets
 
 Capability audit requirements are filtered by the generated project's
 language, so copied C++ repos do not require Python-only support skills

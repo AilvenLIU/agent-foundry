@@ -56,12 +56,8 @@ otherwise use legacy `project_type`.
 | `project_type: cpp` or `language: [cpp]` | `common/`, `cpp/` | CMake owns native build graph; CPM owns lightweight C++ deps |
 | `language` includes both `python` and `cpp` | `common/`, `python/`, `cpp/`, `hybrid/` | CMake owns native build graph; scikit-build-core only bridges packaging |
 
-Before final response after any edit, Claude Code must run the relevant
-validation command or explain why it could not be run:
-
-```bash
-.agents/bin/agent-check-constraints
-```
+Before committing, run `/pre-commit` (format, lint, and the tests that cover the change).
+`/check-constraints` is available for diagnosing policy drift; it is not a required step.
 
 ## Bundled Behavioural Skill
 

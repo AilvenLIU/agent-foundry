@@ -60,10 +60,18 @@ _FILE_MAP = {
 }
 
 # Directories to copy verbatim
-_COPY_DIRS = [".agents", ".claude", ".codex", ".github", "agent_roadmaps"]
-_COPY_IGNORE = shutil.ignore_patterns(
+_COPY_DIRS = [".agents", ".claude", ".codex", ".github", ".githooks", "agent_roadmaps"]
+_BASE_IGNORE = shutil.ignore_patterns(
     "__pycache__", "*.pyc", "*.pyo", ".DS_Store", "session_state.json"
 )
+
+
+def _COPY_IGNORE(directory: str, names: list[str]) -> set[str]:
+    """Skip caches and the foundry's own infrastructure tests (.agents/scripts/tests)."""
+    skipped = set(_BASE_IGNORE(directory, names))
+    if Path(directory).name == "scripts" and Path(directory).parent.name == ".agents":
+        skipped |= {"tests"} & set(names)
+    return skipped
 
 
 def _write_if_missing(path: Path, content: str) -> None:
@@ -227,7 +235,7 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
             "[build-system]\n"
             "requires = [\n"
             '  "scikit-build-core",\n'
-            '  "pybind11",\n'
+            '  "nanobind>=2.12",\n'
             '  "ninja",\n'
             '  "cmake"\n'
             "]\n"
@@ -238,6 +246,7 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
             'requires-python = ">=3.10"\n\n'
             "[tool.scikit-build]\n"
             'cmake.build-type = "RelWithDebInfo"\n'
+            'wheel.py-api = "cp312"  # matches nanobind STABLE_ABI\n'
             'build-dir = "build/{wheel_tag}"\n'
             'wheel.packages = ["python/myproject"]\n',
         )
@@ -276,16 +285,20 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
         )
         _write_if_missing(
             target_dir / "bindings" / "python" / "CMakeLists.txt",
-            "find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)\n"
-            "find_package(pybind11 CONFIG REQUIRED)\n\n"
-            "pybind11_add_module(_core_ext bindings.cpp)\n"
+            "find_package(Python 3.10 REQUIRED COMPONENTS Interpreter Development.Module)\n"
+            "execute_process(\n"
+            '  COMMAND "${Python_EXECUTABLE}" -m nanobind --cmake_dir\n'
+            "  OUTPUT_STRIP_TRAILING_WHITESPACE\n"
+            "  OUTPUT_VARIABLE nanobind_ROOT)\n"
+            "find_package(nanobind CONFIG REQUIRED)\n\n"
+            "nanobind_add_module(_core_ext STABLE_ABI bindings.cpp)\n"
             "target_link_libraries(_core_ext PRIVATE myproject_core)\n"
             "install(TARGETS _core_ext DESTINATION myproject)\n",
         )
         _write_if_missing(
             target_dir / "bindings" / "python" / "bindings.cpp",
-            "#include <pybind11/pybind11.h>\n\n"
-            "PYBIND11_MODULE(_core_ext, module) {\n"
+            "#include <nanobind/nanobind.h>\n\n"
+            "NB_MODULE(_core_ext, module) {\n"
             '  module.doc() = "myproject native bindings";\n'
             "}\n",
         )
@@ -333,6 +346,13 @@ def create_project(template_root: Path, target_dir: Path, project_type: str) -> 
     print(f"[{step}] Initializing git repository...")
     try:
         subprocess.run(["git", "init"], cwd=target_dir, capture_output=True, check=True)
+        # commit-msg hook rejecting Co-Authored-By / AI-attribution lines
+        subprocess.run(
+            ["git", "config", "core.hooksPath", ".githooks"],
+            cwd=target_dir,
+            capture_output=True,
+            check=True,
+        )
         subprocess.run(
             ["git", "add", "."], cwd=target_dir, capture_output=True, check=True
         )

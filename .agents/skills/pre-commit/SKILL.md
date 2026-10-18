@@ -20,8 +20,8 @@ Orchestrates code-quality tools appropriate to the detected project type.
 
 1. Detects project type via shared `project_type.py`.
 2. Runs language-appropriate tools in sequence.
-3. Collects application tests from `tests/` and agent-infrastructure tests from
-   `.agents/scripts/tests/` explicitly, including when pytest ignores hidden trees.
+3. Runs the project's tests from `tests/` (plus the foundry's own infrastructure tests, only
+   in the Agent Foundry source repository).
 4. Scopes C++ discovery and cppcheck to first-party sources, excluding generated,
    vendored, environment, roadmap, and agent-infrastructure trees.
 5. Prints consolidated pass/fail summary with detailed errors.

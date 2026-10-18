@@ -81,9 +81,8 @@ Within repository-controlled guidance, precedence is:
 
 This local order does not supersede platform or tool requirements. Session
 records and conversational assumptions cannot alter current repository state.
-When two repository rules at the same level conflict, prefer the stricter rule;
-if that does not resolve the issue, stop, explain the conflict, and ask for an
-approved exception or ADR path.
+When two repository rules at the same level conflict, prefer the more specific rule;
+if that does not resolve the issue, ask the user.
 
 ### Project Type to Constraint Family
 
@@ -96,12 +95,9 @@ when `project_profile` is absent.
 | `project_type: cpp` or `language: [cpp]` | `.agents/constraints/common/`, `.agents/constraints/cpp/` | CMake for native build graph; CPM for lightweight C++ deps |
 | `language` includes both `python` and `cpp` | `.agents/constraints/common/`, `.agents/constraints/python/`, `.agents/constraints/cpp/`, `.agents/constraints/hybrid/` | CMake for native build graph; scikit-build-core only bridges packaging |
 
-Before final response after edits, run the relevant validation command, or state
-why it could not be run:
-
-```bash
-.agents/bin/agent-check-constraints
-```
+Before committing, run `.agents/bin/agent-precommit` (format, lint, and the tests that
+cover the change). `.agents/bin/agent-check-constraints` is available for diagnosing
+policy drift; it is not a required step.
 
 ## C++/CUDA and Hybrid Build Policy Summary
 

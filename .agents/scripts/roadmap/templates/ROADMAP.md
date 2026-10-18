@@ -17,9 +17,15 @@ This local order does not supersede higher-priority platform or tool
 requirements. If this file conflicts with `INVARIANTS.md`, follow
 `INVARIANTS.md` and ask the user.
 
+> Keep this file to about a page. A phase is a vertical slice of the product that ends
+> with something that runs. Do not add phases or tasks whose only output is tests,
+> validation, hardening, or documentation; those belong inside the task they cover.
+
 ## 1. Goal
 
-Describe exactly what this phase must deliver and why it matters.
+Describe what this phase delivers and why it matters.
+
+**Done when**: an observable result, such as "run X and see Y".
 
 ## 2. Upstream Dependencies
 
@@ -46,25 +52,25 @@ Map each task in `roadmap.yml` to execution intent, including dependency order.
 
 - `<TASK_PREFIX>-1`: why this must happen first
 - `<TASK_PREFIX>-2`: dependency assumptions and failure modes
-- `<TASK_PREFIX>-3`: validation + handoff expectations
+- `<TASK_PREFIX>-3`: what it delivers and what it depends on
 
 ## 5. Deliverables
 
 - [Deliverable artifact 1]
 - [Deliverable artifact 2]
-- [Validation evidence]
 
 ## 6. Exit Criteria
 
 This phase is complete only when:
+- The "Done when" result holds when run
 - Every task in `roadmap.yml` is `completed`
 - `status.completed_at` is set
 - Final handoff exists in `sessions/`
 - PR/MR from `roadmap/<PHASE_FOLDER_NAME>` is ready
 
-## 7. Risks and Rollback
+## 7. Risks
 
-Document critical risks, detection signals, and rollback or containment strategy.
+Only risks that are real for this phase. Omit the section if there are none.
 
 ## 8. Execution Rule
 

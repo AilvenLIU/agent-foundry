@@ -31,7 +31,7 @@ If unsure, ask before acting.
 This repository uses a modular constraint system. Instead of duplicating all technical requirements here, detailed constraints are organised in `.agents/constraints/`:
 
 ### C++/CUDA-Specific Constraints
-- `cpp/testing.md` - Google Test, Catch2, coverage (70%+)
+- `cpp/testing.md` - Google Test, Catch2, what to test
 - `cpp/formatting.md` - clang-format, naming conventions
 - `cpp/cmake.md` - CMake 3.24+, modern target-based approach
 - `cpp/cuda.md` - CUDA 11.0+, memory management, error checking
@@ -214,11 +214,11 @@ Review for:
 - **Safety**: Memory leaks, race conditions, CUDA errors?
 - **Performance**: Unnecessary copies, inefficient algorithms?
 - **Maintainability**: Clear code, good naming, documentation?
-- **Testing**: Adequate test coverage (70%+)?
+- **Testing**: Are the risky parts tested?
 
 **Review checklist**:
 - [ ] Code compiles without warnings
-- [ ] Tests pass and provide good coverage
+- [ ] Tests pass
 - [ ] CUDA error checking is present
 - [ ] Memory management is correct (RAII, no leaks)
 - [ ] Documentation is clear and complete
@@ -250,7 +250,6 @@ For detailed requirements, see `.agents/constraints/cpp/` and run `/init`.
 - **Static Analysis**: clang-tidy, cppcheck
 - **CUDA Analysis**: cuda-memcheck, compute-sanitizer
 - **Test Framework**: Google Test (primary), Catch2 (alternative)
-- **Coverage**: gcov/lcov (minimum 70%)
 
 ### Memory Safety (MANDATORY)
 - **RAII**: All resources MUST use RAII
@@ -260,8 +259,6 @@ For detailed requirements, see `.agents/constraints/cpp/` and run `/init`.
 - **Error Checking**: Check ALL CUDA API calls
 
 ### Testing
-- **Minimum coverage**: 70%
-- **Target coverage**: 80%+
 - **Test file naming**: `test_<module>.cpp`
 - **CUDA tests**: Separate test suite for GPU code
 - **Memory checks**: Run valgrind (CPU) and cuda-memcheck (GPU)
@@ -366,7 +363,6 @@ All ordinary PRs MUST pass CI checks:
 - All tests pass
 - Static analysis (clang-tidy, cppcheck)
 - Code formatting check (clang-format)
-- Coverage threshold met (70%+)
 
 The bounded version-only push runs focused structural proof instead of the full
 build. On the sole identity-proved release PR, the required validation status

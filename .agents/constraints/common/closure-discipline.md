@@ -1,71 +1,43 @@
-# Closure Discipline Constraints
+# Closure Discipline
 
-> Mandatory completion and review discipline for all AI agents.
-> Applies to every session, task, commit, and roadmap phase across platforms.
+> Completion standard for every session, task, commit, and roadmap phase.
+> Effort is proportional: the feature comes first, verification serves it.
 
-## Overview
+## 1. Proportionality
 
-Correctness, completeness, and evidence take priority over fast closure.
-Agents MUST NOT rush to mark a task, session, or roadmap phase complete merely
-because an initial implementation exists.
+Most effort, and most of the diff, belongs to the feature itself: design,
+implementation, and edge cases. Testing, validation, documentation, and process
+exist to serve it, and are sized by the real complexity and risk of the change,
+never by a wish to be procedurally complete.
 
-## 1. Best-Effort Completion Standard
+Before handing off, ask: do the tests, scripts, and docs I added outweigh the
+feature, or does something exist that nobody asked for? If so, cut it.
 
-Before claiming any work is complete, the agent MUST make its strongest
-reasonable effort to deliver a complete, production-quality result:
+## 2. Done means it works
 
-- Re-read the user request and active constraints.
-- Compare the implementation against the requested scope and acceptance
-  criteria.
-- Review its own changes critically for edge cases, regressions, incomplete
-  paths, unsafe assumptions, and missing tests.
-- Fix issues found during review instead of deferring them when they are within
-  scope.
-- Run the strongest relevant validation available for the change.
-- State any unrun checks, known limitations, blockers, or residual risk.
+A task is done when the feature works end to end and the parts that can really
+break are tested. It is not done when every path is covered.
 
-## 2. Repeated Review Before Closure
+- Run the changed feature once, for real, and run the tests that cover it.
+- Fix what that shows. One review of your own diff is enough for ordinary work.
+- Do not loop on review rounds, re-prove what the code already shows, or add
+  validation layers around work that is already verified.
 
-For non-trivial work, the agent MUST perform at least one explicit review pass
-after implementation and before final response or task advancement.
+## 3. Rigor rises with concrete risk
 
-For high-risk work, including roadmap phase completion, security-sensitive
-changes, data migrations, dependency changes, public API changes, build-system
-changes, CUDA/native changes, or production-facing behaviour, the review pass
-MUST be rigorous and adversarial:
+Go deeper only where something specific can go wrong: security boundaries,
+money or data loss, migrations, public APIs, concurrency, and GPU numerics.
+Use the extra tool that fits (property tests, sanitizers, a rollback plan) and
+say which risk justifies it. "High-risk by category" is not a reason by itself.
 
-- Search for implicit failure modes, not only obvious syntax errors.
-- Inspect changed files directly rather than relying only on memory.
-- Check that tests or validation cover the most important behaviour.
-- Re-run focused checks after fixes made during review.
+## 4. Roadmap phases
 
-## 3. Evidence-Based Closure
+A phase is closed when its "done when" criterion holds: run the thing and
+observe it. Record the state in a few lines in the handoff. Do not advance to
+the next phase while in-scope work is unfinished, and do not create phases or
+tasks whose only output is tests, validation, hardening, or documentation.
 
-The agent MUST NOT claim success without evidence. Acceptable evidence includes
-passing tests, builds, linters, type checks, schema validation, targeted manual
-inspection, generated artefact inspection, or another concrete verification
-appropriate to the task.
+## 5. Reporting
 
-If validation cannot be run, the agent MUST say why and describe the remaining
-risk clearly.
-
-## 4. Roadmap Phase Closure
-
-A roadmap phase is eligible to close only when:
-
-- Every task in `roadmap.yml` is complete or the user explicitly accepts a
-  documented blocked/partial outcome.
-- Phase invariants and acceptance criteria have been re-read.
-- The phase branch has relevant validation evidence.
-- A session handoff records completed work, decisions, blockers, validation,
-  residual risk, and next action.
-
-Do not advance to another phase to create a sense of progress when the current
-phase still has unresolved in-scope issues.
-
-## 5. Final Response Discipline
-
-Final responses MUST distinguish verified facts from assumptions. They MUST
-summarise what changed, what was validated, and any residual risk. They MUST NOT
-overstate certainty or imply an impeccable result when validation evidence is
-incomplete.
+State plainly what changed, what ran, and what did not. Do not claim success
+that was not observed, and do not pad the report.

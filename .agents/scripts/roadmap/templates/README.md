@@ -65,7 +65,7 @@ At every session start:
 
 For roadmap sessions:
 1. Create `sessions/session-YYYY-MM-DD-HH-MM.md`
-2. Include work completed, decisions, blockers, next steps
+2. Keep it to a few lines: where things stand, decisions, blockers, next step
 3. Update `roadmap.yml`
 4. Commit handoff and roadmap state together
 

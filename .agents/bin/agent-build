@@ -142,7 +142,7 @@ scikit_build_doctor() {
   elif command -v poetry >/dev/null 2>&1; then
     poetry run python --version || echo "Poetry Python environment not ready"
     poetry run pip show scikit-build-core 2>/dev/null || echo "scikit-build-core not installed"
-    poetry run pip show pybind11 2>/dev/null || echo "pybind11 not installed"
+    poetry run pip show nanobind 2>/dev/null || echo "nanobind not installed"
   else
     echo "poetry not found"
   fi

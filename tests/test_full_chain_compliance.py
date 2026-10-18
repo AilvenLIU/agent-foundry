@@ -422,12 +422,7 @@ def test_full_roadmap_lifecycle(
     assert status.returncode == 0, status.stdout + status.stderr
     assert phase in status.stdout
 
-    # Complete the first two tasks; phase remains active.
-    for _ in range(2):
-        comp = _run(
-            ["bash", ".agents/bin/agent-roadmap", "update", "complete-task"], project
-        )
-        assert comp.returncode == 0, comp.stdout + comp.stderr
+    # A fresh phase has a single task; the phase stays active until it is completed.
 
     handoff = _run(
         [
@@ -436,9 +431,9 @@ def test_full_roadmap_lifecycle(
             "handoff",
             "--non-interactive",
             "--work",
-            "finished 2 tasks",
+            "worked the task",
             "--next-steps",
-            "close out final task",
+            "complete the task",
         ],
         project,
     )

@@ -32,7 +32,7 @@ If unsure, ask before acting.
 This repository uses a modular constraint system. Instead of duplicating all technical requirements here, detailed constraints are organised in `.agents/constraints/`:
 
 ### Python-Specific Constraints
-- `python/testing.md` - pytest, coverage (80%+), test organisation
+- `python/testing.md` - pytest, what to test
 - `python/formatting.md` - ruff (sole formatter, linter, and import sorter), PEP 8, naming conventions
 - `python/type-checking.md` - Type hints (mandatory), mypy configuration
 - `python/dependencies.md` - poetry-managed dependency workflow
@@ -41,7 +41,7 @@ This repository uses a modular constraint system. Instead of duplicating all tec
 - `python/security.md` - Input validation, secrets management
 
 ### C++/CUDA-Specific Constraints
-- `cpp/testing.md` - GoogleTest, test organisation, GPU test gating
+- `cpp/testing.md` - GoogleTest, what to test, GPU test gating
 - `cpp/formatting.md` - clang-format, naming conventions
 - `cpp/static-analysis.md` - clang-tidy, compiler warnings
 - `cpp/dependencies.md` - CMake/CPM-first dependency workflow
@@ -145,7 +145,6 @@ Why is this change necessary? What problem does it solve?
 - Python unit tests added/modified (pytest)
 - C++/CUDA unit tests added/modified (GoogleTest)
 - GPU tests gated with appropriate markers
-- Test coverage: X%
 - How to verify the changes
 
 ## Dependencies
@@ -196,7 +195,6 @@ This checks:
 - C++ static analysis (`clang-tidy`)
 - Python tests (pytest)
 - C++/CUDA tests (ctest)
-- Coverage threshold
 
 ## 5. Development Environment Setup
 
@@ -258,7 +256,6 @@ The repository provides `.agents/bin/agent-*` commands for common workflows:
 ### Python Tests
 
 - Use pytest for all Python tests
-- Minimum 80% code coverage
 - Place tests in `tests/python/`
 - Use descriptive test names: `test_<function>_<scenario>_<expected>`
 - Use fixtures for common setup
@@ -613,7 +610,6 @@ strictly greater than the version currently on `master`. See
 - C++ static analysis (clang-tidy)
 - Python tests (pytest)
 - C++/CUDA tests (ctest)
-- Coverage report (80%+ required)
 
 The bounded version-only push runs focused structural proof instead of the full
 build. On the sole identity-proved release PR, the required validation status

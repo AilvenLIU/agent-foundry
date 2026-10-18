@@ -178,17 +178,21 @@ def validate_python(manager: PreCommitManager) -> list[ValidationResult]:
 
     # Run pytest
     if manager.check_tool_available("pytest"):
-        returncode, stdout, stderr = manager.run_command(
-            [
-                "pytest",
-                "--tb=short",
-                "-q",
-                "-x",
-                "tests",
-                ".agents/scripts/tests",
-            ],
-            timeout=600,
-        )
+        # The foundry's own infrastructure tests exist only in the source repository;
+        # generated projects run just their own tests.
+        is_foundry = (manager.repo_root / ".agents" / "skills" / "create-project").is_dir()
+        targets = [
+            target
+            for target in ("tests", ".agents/scripts/tests" if is_foundry else "")
+            if target and (manager.repo_root / target).is_dir()
+        ]
+        if targets:
+            returncode, stdout, stderr = manager.run_command(
+                ["pytest", "--tb=short", "-q", "-x", *targets],
+                timeout=600,
+            )
+        else:
+            returncode, stdout, stderr = 0, "No tests yet", ""
         results.append(
             ValidationResult(
                 "pytest (tests)",

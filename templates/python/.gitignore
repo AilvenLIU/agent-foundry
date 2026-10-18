@@ -60,7 +60,6 @@ ipython_config.py
 .python-version
 
 # Poetry
-poetry.lock
 
 # Pipenv
 Pipfile.lock
